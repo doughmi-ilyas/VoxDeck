@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VoxDeck.Core/VoxDeck.Core.csproj" />
+    <Project Path="src/VoxDeck.App/VoxDeck.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VoxDeck.Core.Tests/VoxDeck.Core.Tests.csproj" />
+  </Folder>
+</Solution>

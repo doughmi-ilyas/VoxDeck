@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NAudio" />
+    <InternalsVisibleTo Include="VoxDeck.Core.Tests" />
+  </ItemGroup>
+</Project>
