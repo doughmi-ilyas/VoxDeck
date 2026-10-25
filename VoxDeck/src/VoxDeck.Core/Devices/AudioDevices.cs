@@ -9,7 +9,9 @@ public static class AudioDevices
 {
     public static List<AudioDevice> Microphones() => List(DataFlow.Capture);
 
-    public static AudioDevice? DefaultOutput() => List(DataFlow.Render).FirstOrDefault(d => d.IsDefault);
+    public static List<AudioDevice> Outputs() => List(DataFlow.Render);
+
+    public static AudioDevice? DefaultOutput() => Outputs().FirstOrDefault(d => d.IsDefault);
 
     static List<AudioDevice> List(DataFlow flow)
     {

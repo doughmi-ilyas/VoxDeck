@@ -39,9 +39,14 @@
                                                        Visibility="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource Visible}}" />
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="Windows default" Style="{StaticResource FaintText}" Visibility="{Binding IsDefault, Converter={StaticResource Visible}}" />
+                                        <TextBlock x:Name="Detail" Text="{Binding Detail}" Style="{StaticResource FaintText}" Visibility="{Binding Detail, Converter={StaticResource Visible}}" />
                                     </StackPanel>
                                 </DockPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                        <Setter TargetName="Detail" Property="Foreground" Value="{DynamicResource Danger}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -66,32 +71,40 @@
                             <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock Text="Sound output" Style="{StaticResource H2}" />
-                            <TextBlock Text="{Binding OutputName}" Style="{StaticResource FaintText}" />
+                            <TextBlock Text="Sounds you hear" Style="{StaticResource H2}" />
+                            <TextBlock Text="Where VoxDeck plays sounds for you" Style="{StaticResource FaintText}" />
                         </StackPanel>
                     </DockPanel>
-                    <TextBlock Style="{StaticResource MutedText}" FontSize="12" Margin="46,12,0,0">
-                        <Run Text="Sounds play on your Windows default output." />
+                    <ListBox Style="{StaticResource PlainList}" ItemsSource="{Binding Outputs}" SelectedItem="{Binding SelectedOutput}"
+                             ItemContainerStyle="{StaticResource Option}" AutomationProperties.Name="Outputs" Margin="3,14,3,0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource FaintText}" Visibility="{Binding Detail, Converter={StaticResource Visible}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Style="{StaticResource MutedText}" FontSize="12" Margin="2,4,0,0">
+                        <Run Text="“Windows default” follows Windows when you switch devices." />
                         <Hyperlink Command="{Binding OpenSoundSettings}" Foreground="{DynamicResource Accent}">Open Windows sound settings</Hyperlink>
                     </TextBlock>
                 </StackPanel>
             </Border>
 
-            <!-- Voice mixing: honest about what isn't there yet -->
+            <!-- Voice chat lives on the Mixer page -->
             <Border Style="{StaticResource Card}" Padding="18" Margin="0,18,0,0" Background="{DynamicResource Surface2}">
                 <DockPanel>
-                    <Border Width="34" Height="34" CornerRadius="9" Background="{DynamicResource Hover}" Margin="0,0,12,0" VerticalAlignment="Top">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE72E;" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" VerticalAlignment="Center" Margin="12,0,0,0"
+                            Command="{Binding DataContext.GoToMixer, RelativeSource={RelativeSource AncestorType=Window}}" Content="Open Mixer" />
+                    <Border Width="34" Height="34" CornerRadius="9" Background="{DynamicResource AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE9E9;" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
                     </Border>
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Voice mixing" Style="{StaticResource H2}" />
-                            <Border Style="{StaticResource Pill}" Background="{DynamicResource Hover}" Margin="10,0,0,0">
-                                <TextBlock Text="Coming later" Foreground="{DynamicResource Muted}" />
-                            </Border>
-                        </StackPanel>
+                        <TextBlock Text="Discord, games and voice chat" Style="{StaticResource H2}" />
                         <TextBlock Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,0"
-                                   Text="Sending your voice and your sounds into Discord or a game together needs a virtual audio cable. VoxDeck will guide you through it in a later version; nothing gets installed without asking." />
+                                   Text="Send your voice and your sounds into one microphone that voice apps can pick. Set it up on the Mixer page." />
                     </StackPanel>
                 </DockPanel>
             </Border>

@@ -527,6 +527,97 @@
         </Setter>
     </Style>
 
+    <!-- Vertical mixer fader -->
+    <Style x:Key="FaderFill" TargetType="RepeatButton" BasedOn="{StaticResource TrackFill}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Width="4" CornerRadius="2" HorizontalAlignment="Center" Background="{DynamicResource Accent}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="Fader" TargetType="Slider">
+        <Setter Property="Orientation" Value="Vertical" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="190" />
+        <Setter Property="SmallChange" Value="0.05" />
+        <Setter Property="LargeChange" Value="0.1" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid Background="Transparent">
+                        <Border Width="4" CornerRadius="2" HorizontalAlignment="Center" Background="{DynamicResource Line}" />
+                        <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource FaderFill}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource TrackEmpty}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Width="36" Height="18">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="Knob" CornerRadius="6" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line2}" BorderThickness="1">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270" Opacity="0.18" />
+                                                </Border.Effect>
+                                                <Border Width="16" Height="2" CornerRadius="1" Background="{DynamicResource Accent}" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Knob" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="Knob" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Mute toggle: turns red while muted -->
+    <Style x:Key="MuteToggle" TargetType="ToggleButton">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+        <Setter Property="controls:Motion.PressScale" Value="0.96" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource Line2}" />
+                <Setter Property="Foreground" Value="{DynamicResource Text}" />
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Danger}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- On/off switch with a springy knob -->
     <Style x:Key="Switch" TargetType="ToggleButton">
         <Setter Property="Width" Value="36" />
@@ -571,6 +662,9 @@
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Track" Property="Opacity" Value="0.4" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

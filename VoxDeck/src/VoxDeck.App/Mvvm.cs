@@ -20,6 +20,14 @@ public abstract class ViewModel : INotifyPropertyChanged
     protected void Raise(string? name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
+/// <summary>A sidebar page.</summary>
+public interface IPage
+{
+    string Title { get; }
+    string Icon { get; }
+    string? Badge { get; }
+}
+
 public sealed class Command(Action<object?> run) : ICommand
 {
     public Command(Action run) : this(_ => run()) { }

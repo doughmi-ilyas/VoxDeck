@@ -50,6 +50,28 @@
 
             <!-- Output + master volume -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Mic mute + level, shown while voice mixing is live -->
+                <ToggleButton DataContext="{Binding DataContext.Mixer, RelativeSource={RelativeSource AncestorType=Window}}"
+                              Style="{StaticResource MuteToggle}" Height="34" Padding="0" Margin="0,0,20,0" IsChecked="{Binding MicMuted}"
+                              Visibility="{Binding Router.IsRunning, Converter={StaticResource Visible}}"
+                              AutomationProperties.Name="Mute microphone" ToolTip="Mute your microphone in voice chat">
+                    <StackPanel Orientation="Horizontal" Margin="10,0">
+                        <TextBlock x:Name="MicGlyph" FontSize="14">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                                    <Setter Property="Text" Value="&#xE720;" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MicMuted}" Value="True">
+                                            <Setter Property="Text" Value="&#xEC54;" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <controls:SegMeter Width="44" Height="5" Margin="8,0,0,0" VerticalAlignment="Center" Level="{Binding MicLevel}"
+                                           On="{DynamicResource Accent}" Off="{DynamicResource Line}" Hot="{DynamicResource Warn}" />
+                    </StackPanel>
+                </ToggleButton>
                 <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="14" Foreground="{DynamicResource Faint}" />
                 <TextBlock Text="{Binding OutputName}" Style="{StaticResource FaintText}" MaxWidth="160" Margin="6,0,20,0" VerticalAlignment="Center" ToolTip="{Binding OutputName}" />
                 <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" FontSize="15" Foreground="{DynamicResource Muted}" />

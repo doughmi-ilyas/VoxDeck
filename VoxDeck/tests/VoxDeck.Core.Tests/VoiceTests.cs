@@ -3,7 +3,7 @@ using VoxDeck.Core.Audio;
 
 namespace VoxDeck.Core.Tests;
 
-public class PlaybackTests
+public class VoiceTests
 {
     // 10 Hz stereo → 20 samples per second; sample value == its index.
     static readonly WaveFormat Format = WaveFormat.CreateIeeeFloatWaveFormat(10, 2);
@@ -12,7 +12,7 @@ public class PlaybackTests
     [Fact]
     public void Seek_StartsReadingFromThatTime()
     {
-        var playback = new Playback(null, 0, Format, TwoSeconds) { Position = TimeSpan.FromSeconds(0.5) };
+        var playback = new Voice(null, 0, Format, TwoSeconds) { Position = TimeSpan.FromSeconds(0.5) };
         var buffer = new float[4];
         playback.Read(buffer, 0, 4);
         Assert.Equal([10f, 11, 12, 13], buffer);
@@ -22,7 +22,7 @@ public class PlaybackTests
     [Fact]
     public void Loop_WrapsToLoopStart_WithoutEnding()
     {
-        var playback = new Playback(null, 0, Format, TwoSeconds)
+        var playback = new Voice(null, 0, Format, TwoSeconds)
         {
             Loop = true,
             LoopStart = TimeSpan.FromSeconds(1),
@@ -37,7 +37,7 @@ public class PlaybackTests
     [Fact]
     public void NoLoop_EndsAtTheEnd()
     {
-        var playback = new Playback(null, 0, Format, TwoSeconds) { Position = TimeSpan.FromSeconds(1.9), Volume = 0.5f };
+        var playback = new Voice(null, 0, Format, TwoSeconds) { Position = TimeSpan.FromSeconds(1.9), Volume = 0.5f };
         var buffer = new float[4];
         Assert.Equal(2, playback.Read(buffer, 0, 4));
         Assert.Equal([19f, 19.5f, 0, 0], buffer);

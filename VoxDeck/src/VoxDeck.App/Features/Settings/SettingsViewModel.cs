@@ -9,7 +9,7 @@ using VoxDeck.Core.Settings;
 
 namespace VoxDeck.App.Features.Settings;
 
-public sealed class SettingsViewModel : ViewModel
+public sealed class SettingsViewModel : ViewModel, IPage
 {
     readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
 
@@ -25,8 +25,6 @@ public sealed class SettingsViewModel : ViewModel
             if (e.Category == UserPreferenceCategory.General && Current.Theme == "System")
                 dispatcher.InvokeAsync(() => ThemeManager.Apply("System"));
         };
-        CaptureStopAll = new Command(OnCaptureStopAll);
-        ClearStopAll = new Command(() => Hotkeys?.AssignStopAll(null));
         OpenFolder = new Command(() => Process.Start("explorer.exe", JsonFile.AppFolder));
     }
 
@@ -35,7 +33,9 @@ public sealed class SettingsViewModel : ViewModel
     public string? Badge => null;
 
     public AppSettings Current { get; private set; }
-    public HotkeyManager? Hotkeys { get; set; }
+
+    public ShortcutSetting? StopAllShortcut { get; private set; }
+    public ShortcutSetting? MuteMicShortcut { get; private set; }
 
     public string[] Themes { get; } = ["System", "Light", "Dark"];
 
@@ -65,13 +65,16 @@ public sealed class SettingsViewModel : ViewModel
         set => Update(s => s with { OverlapSounds = value });
     }
 
-    public string? StopAllHotkeyText => Current.StopAllHotkey is { } h ? HotkeyText.Format(h) : null;
-    public bool IsCapturingStopAll { get; private set => Set(ref field, value); }
     public string LibraryFolder => JsonFile.AppFolder;
 
-    public Command CaptureStopAll { get; }
-    public Command ClearStopAll { get; }
     public Command OpenFolder { get; }
+
+    public void AttachHotkeys(HotkeyManager hotkeys)
+    {
+        StopAllShortcut = new ShortcutSetting(hotkeys, hotkeys.StopAll, this);
+        MuteMicShortcut = new ShortcutSetting(hotkeys, hotkeys.MuteMic, this);
+        Raise("");
+    }
 
     public void Update(Func<AppSettings, AppSettings> change)
     {
@@ -85,23 +88,5 @@ public sealed class SettingsViewModel : ViewModel
     {
         _saveTimer.Stop();
         Current.Save(AppSettings.DefaultPath);
-    }
-
-    void OnCaptureStopAll()
-    {
-        if (Hotkeys is null) return;
-        if (IsCapturingStopAll)
-        {
-            Hotkeys.CancelCapture();
-            return;
-        }
-        IsCapturingStopAll = true;
-        Hotkeys.Capture(
-            hotkey =>
-            {
-                IsCapturingStopAll = false;
-                Hotkeys.AssignStopAll(hotkey);
-            },
-            () => IsCapturingStopAll = false);
     }
 }

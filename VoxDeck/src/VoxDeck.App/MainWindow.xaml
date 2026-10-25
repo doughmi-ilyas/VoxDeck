@@ -8,6 +8,7 @@
         xmlns:player="clr-namespace:VoxDeck.App.Features.Player"
         xmlns:editor="clr-namespace:VoxDeck.App.Features.Editor"
         xmlns:palette="clr-namespace:VoxDeck.App.Features.Palette"
+        xmlns:mixer="clr-namespace:VoxDeck.App.Features.Mixer"
         Title="VoxDeck" Width="1280" Height="800" MinWidth="920" MinHeight="580" WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" FontFamily="{StaticResource UiFont}" FontSize="13"
         AllowDrop="True" PreviewDragEnter="OnDragEnter" PreviewKeyDown="OnPreviewKeyDown">
@@ -27,6 +28,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type settings:SettingsViewModel}">
             <settings:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type mixer:MixerViewModel}">
+            <mixer:MixerView />
         </DataTemplate>
     </Window.Resources>
 
@@ -83,11 +87,11 @@
                                 <StackPanel>
                                     <DockPanel>
                                         <Border DockPanel.Dock="Right" Style="{StaticResource Pill}">
-                                            <TextBlock Text="{Binding Audio.MicState}" />
+                                            <TextBlock Text="{Binding Router.MicState}" />
                                         </Border>
                                         <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="14" Foreground="{DynamicResource Muted}" Margin="0,0,9,0" />
                                         <StackPanel Margin="0,0,8,0">
-                                            <TextBlock Text="{Binding Audio.MicName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Router.MicName}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="Microphone" Style="{StaticResource FaintText}" FontSize="11" />
                                         </StackPanel>
                                     </DockPanel>
@@ -97,8 +101,30 @@
                                         </Border>
                                         <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" FontSize="14" Foreground="{DynamicResource Muted}" Margin="0,0,9,0" />
                                         <StackPanel Margin="0,0,8,0">
-                                            <TextBlock Text="{Binding Audio.OutputName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Router.MonitorName}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="Sound output" Style="{StaticResource FaintText}" FontSize="11" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,10,0,0">
+                                        <Border DockPanel.Dock="Right">
+                                            <Border.Style>
+                                                <Style TargetType="Border" BasedOn="{StaticResource Pill}">
+                                                    <Setter Property="Background" Value="{DynamicResource Hover}" />
+                                                    <Setter Property="TextElement.Foreground" Value="{DynamicResource Muted}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Router.IsRunning}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource OkSoft}" />
+                                                            <Setter Property="TextElement.Foreground" Value="{DynamicResource Ok}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding Router.VoiceBadge}" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE9E9;" FontSize="14" Foreground="{DynamicResource Muted}" Margin="0,0,9,0" />
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="Voice chat" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="Mic + sounds to Discord" Style="{StaticResource FaintText}" FontSize="11" />
                                         </StackPanel>
                                     </DockPanel>
                                 </StackPanel>

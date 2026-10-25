@@ -1,20 +1,43 @@
 using System.Windows.Input;
 using VoxDeck.App.Features.Library;
+using VoxDeck.App.Features.Mixer;
 using VoxDeck.App.Features.Player;
 using VoxDeck.App.Features.Settings;
 using VoxDeck.App.Features.Toasts;
 using VoxDeck.Core.Hotkeys;
+using VoxDeck.Core.Settings;
 
 namespace VoxDeck.App.Hotkeys;
 
-// Owns every global shortcut (one per sound plus Stop all) and the "press a key combination" capture.
+/// <summary>A shortcut stored in the settings rather than on a sound (Stop all, mute mic).</summary>
+public sealed record AppShortcut(string Purpose, Func<AppSettings, Hotkey?> Get, Func<AppSettings, Hotkey?, AppSettings> With, Action Run);
+
+// Owns every global shortcut (one per sound plus the app shortcuts) and the "press a key combination" capture.
 // Any change re-registers everything; there are only ever a few dozen.
-public sealed class HotkeyManager(LibraryViewModel library, SettingsViewModel settings, PlayerViewModel player, ToastsViewModel toasts)
+public sealed class HotkeyManager
 {
+    readonly LibraryViewModel _library;
+    readonly SettingsViewModel _settings;
+    readonly PlayerViewModel _player;
+    readonly ToastsViewModel _toasts;
     GlobalHotkeys? _hotkeys;
     Action<Hotkey?>? _onCaptured;
     Action? _onCancelled;
 
+    public HotkeyManager(LibraryViewModel library, SettingsViewModel settings, PlayerViewModel player, MixerViewModel mixer, ToastsViewModel toasts)
+    {
+        _library = library;
+        _settings = settings;
+        _player = player;
+        _toasts = toasts;
+        StopAll = new("stops all sounds", s => s.StopAllHotkey, (s, h) => s with { StopAllHotkey = h }, player.StopEverything);
+        MuteMic = new("mutes your microphone", s => s.MuteMicHotkey, (s, h) => s with { MuteMicHotkey = h }, mixer.ToggleMuteFromHotkey);
+        Shortcuts = [StopAll, MuteMic];
+    }
+
+    public AppShortcut StopAll { get; }
+    public AppShortcut MuteMic { get; }
+    public AppShortcut[] Shortcuts { get; }
     public bool IsCapturing => _onCaptured is not null;
 
     public void Attach(IntPtr hwnd)
@@ -22,7 +45,7 @@ public sealed class HotkeyManager(LibraryViewModel library, SettingsViewModel se
         _hotkeys = new GlobalHotkeys(hwnd);
         var failed = RegisterAll();
         if (failed.Count > 0)
-            toasts.Error($"{string.Join(", ", failed)} {(failed.Count == 1 ? "is" : "are")} already used by another app.");
+            _toasts.Error($"{string.Join(", ", failed)} {(failed.Count == 1 ? "is" : "are")} already used by another app.");
     }
 
     public bool HandleMessage(int message, IntPtr wParam) => _hotkeys?.HandleMessage(message, wParam) == true;
@@ -65,7 +88,7 @@ public sealed class HotkeyManager(LibraryViewModel library, SettingsViewModel se
         {
             if (modifiers == ModifierKeys.None && key is not (>= Key.F1 and <= Key.F24) && key is not (>= Key.NumPad0 and <= Key.Divide))
             {
-                toasts.Info("Add Ctrl, Alt or Shift so normal typing still works. F-keys and the number pad work alone.");
+                _toasts.Info("Add Ctrl, Alt or Shift so normal typing still works. F-keys and the number pad work alone.");
                 return true;
             }
             result = new Hotkey((KeyModifiers)modifiers, KeyInterop.VirtualKeyFromKey(key));
@@ -80,54 +103,64 @@ public sealed class HotkeyManager(LibraryViewModel library, SettingsViewModel se
     public void AssignToSound(SoundItem item, Hotkey? hotkey)
     {
         var previous = item.Model.Hotkey;
-        if (hotkey is not null && hotkey == settings.Current.StopAllHotkey)
+        if (hotkey is not null && Shortcuts.FirstOrDefault(s => s.Get(_settings.Current) == hotkey) is { } shortcut)
         {
-            toasts.Error($"{HotkeyText.Format(hotkey)} is your Stop all shortcut.");
+            _toasts.Error($"{HotkeyText.Format(hotkey)} already {shortcut.Purpose}.");
             RegisterAll();
             return;
         }
         if (hotkey is not null)
         {
-            foreach (var other in library.Items.Where(i => i != item && i.Model.Hotkey == hotkey).ToList())
+            foreach (var other in _library.Items.Where(i => i != item && i.Model.Hotkey == hotkey).ToList())
             {
-                library.Edit(other, other.Model with { Hotkey = null });
-                toasts.Info($"Moved {HotkeyText.Format(hotkey)} from “{other.Model.Title}”.");
+                _library.Edit(other, other.Model with { Hotkey = null });
+                _toasts.Info($"Moved {HotkeyText.Format(hotkey)} from “{other.Model.Title}”.");
             }
         }
-        library.Edit(item, item.Model with { Hotkey = hotkey });
+        _library.Edit(item, item.Model with { Hotkey = hotkey });
         RegisterAll();
         if (hotkey is null) return;
         if (item.HotkeyFailed)
         {
-            toasts.Error($"Windows says {HotkeyText.Format(hotkey)} is already used by another app. Try another one.");
-            library.Edit(item, item.Model with { Hotkey = previous });
+            _toasts.Error($"Windows says {HotkeyText.Format(hotkey)} is already used by another app. Try another one.");
+            _library.Edit(item, item.Model with { Hotkey = previous });
             RegisterAll();
         }
         else
         {
-            toasts.Success($"{HotkeyText.Format(hotkey)} now plays “{item.Model.Title}”.");
+            _toasts.Success($"{HotkeyText.Format(hotkey)} now plays “{item.Model.Title}”.");
         }
     }
 
-    public void AssignStopAll(Hotkey? hotkey)
+    public void Assign(AppShortcut shortcut, Hotkey? hotkey)
     {
-        if (hotkey is not null && library.Items.FirstOrDefault(i => i.Model.Hotkey == hotkey) is { } owner)
+        if (hotkey is not null)
         {
-            toasts.Error($"{HotkeyText.Format(hotkey)} already plays “{owner.Model.Title}”.");
-            RegisterAll();
-            return;
+            if (_library.Items.FirstOrDefault(i => i.Model.Hotkey == hotkey) is { } owner)
+            {
+                _toasts.Error($"{HotkeyText.Format(hotkey)} already plays “{owner.Model.Title}”.");
+                RegisterAll();
+                return;
+            }
+            if (Shortcuts.FirstOrDefault(s => s != shortcut && s.Get(_settings.Current) == hotkey) is { } other)
+            {
+                _toasts.Error($"{HotkeyText.Format(hotkey)} already {other.Purpose}.");
+                RegisterAll();
+                return;
+            }
         }
-        var previous = settings.Current.StopAllHotkey;
-        settings.Update(s => s with { StopAllHotkey = hotkey });
-        if (RegisterAll().Count > 0 && hotkey is not null)
+        var previous = shortcut.Get(_settings.Current);
+        _settings.Update(s => shortcut.With(s, hotkey));
+        var failed = RegisterAll();
+        if (hotkey is not null && failed.Contains(HotkeyText.Format(hotkey)))
         {
-            toasts.Error($"Windows says {HotkeyText.Format(hotkey)} is already used by another app. Try another one.");
-            settings.Update(s => s with { StopAllHotkey = previous });
+            _toasts.Error($"Windows says {HotkeyText.Format(hotkey)} is already used by another app. Try another one.");
+            _settings.Update(s => shortcut.With(s, previous));
             RegisterAll();
         }
         else if (hotkey is not null)
         {
-            toasts.Success($"{HotkeyText.Format(hotkey)} now stops all sounds.");
+            _toasts.Success($"{HotkeyText.Format(hotkey)} now {shortcut.Purpose}.");
         }
     }
 
@@ -136,13 +169,16 @@ public sealed class HotkeyManager(LibraryViewModel library, SettingsViewModel se
         var failed = new List<string>();
         if (_hotkeys is null || IsCapturing) return failed;
         _hotkeys.Clear();
-        foreach (var item in library.Items)
+        foreach (var item in _library.Items)
         {
-            item.HotkeyFailed = item.Model.Hotkey is { } h && !_hotkeys.Register(h, () => player.Play(item));
+            item.HotkeyFailed = item.Model.Hotkey is { } h && !_hotkeys.Register(h, () => _player.Play(item));
             if (item.HotkeyFailed) failed.Add(HotkeyText.Format(item.Model.Hotkey!));
         }
-        if (settings.Current.StopAllHotkey is { } stop && !_hotkeys.Register(stop, player.StopEverything))
-            failed.Add(HotkeyText.Format(stop));
+        foreach (var shortcut in Shortcuts)
+        {
+            if (shortcut.Get(_settings.Current) is { } h && !_hotkeys.Register(h, shortcut.Run))
+                failed.Add(HotkeyText.Format(h));
+        }
         return failed;
     }
 }

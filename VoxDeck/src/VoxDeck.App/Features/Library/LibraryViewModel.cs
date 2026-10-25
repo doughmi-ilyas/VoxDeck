@@ -18,7 +18,7 @@ public sealed class FilterChip(string label) : ViewModel
     public int Count { get; set => Set(ref field, value); }
 }
 
-public sealed class LibraryViewModel : ViewModel
+public sealed class LibraryViewModel : ViewModel, IPage
 {
     const int TileBars = 32;
 

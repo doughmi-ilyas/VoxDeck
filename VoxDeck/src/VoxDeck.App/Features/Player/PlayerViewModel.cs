@@ -10,18 +10,18 @@ namespace VoxDeck.App.Features.Player;
 // Starts sounds and tracks what is playing. The UI timer only runs while something plays.
 public sealed class PlayerViewModel : ViewModel
 {
-    readonly SoundEngine? _engine;
+    readonly SoundEngine _engine;
     readonly SettingsViewModel _settings;
     readonly ToastsViewModel _toasts;
     readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     readonly List<SoundItem> _playing = [];
 
-    public PlayerViewModel(SoundEngine? engine, SettingsViewModel settings, ToastsViewModel toasts)
+    public PlayerViewModel(SoundEngine engine, SettingsViewModel settings, ToastsViewModel toasts)
     {
         _engine = engine;
         _settings = settings;
         _toasts = toasts;
-        if (engine is not null) engine.MasterVolume = (float)settings.Current.MasterVolume;
+        engine.MasterVolume = (float)settings.Current.MasterVolume;
         _timer.Tick += (_, _) => Tick();
         StopAll = new Command(StopEverything);
     }
@@ -49,7 +49,7 @@ public sealed class PlayerViewModel : ViewModel
         set
         {
             _settings.Update(s => s with { MasterVolume = value });
-            if (_engine is not null) _engine.MasterVolume = (float)value;
+            _engine.MasterVolume = (float)value;
             Raise(nameof(MasterVolume));
         }
     }
@@ -59,11 +59,6 @@ public sealed class PlayerViewModel : ViewModel
     public void Play(SoundItem item, double? fromSeconds = null)
     {
         var sound = item.Model;
-        if (_engine is null)
-        {
-            _toasts.Error("No sound output device is available.");
-            return;
-        }
         if (!File.Exists(sound.Path))
         {
             item.IsMissing = true;
@@ -124,7 +119,7 @@ public sealed class PlayerViewModel : ViewModel
         }
     }
 
-    public void StopEverything() => _engine?.StopAll();
+    public void StopEverything() => _engine.StopAll();
 
     void Tick()
     {

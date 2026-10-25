@@ -3,6 +3,27 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:VoxDeck.App.Controls"
              controls:Motion.EnterOnLoad="True">
+    <UserControl.Resources>
+        <!-- "Click, then press keys" button plus a clear button, for a ShortcutSetting -->
+        <DataTemplate x:Key="ShortcutEditor">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource HotkeyButton}" Width="210" Command="{Binding Capture}" Tag="{Binding IsCapturing}" AutomationProperties.Name="Set shortcut">
+                    <Grid>
+                        <TextBlock Text="Press a key combination…" Visibility="{Binding IsCapturing, Converter={StaticResource Visible}}" />
+                        <StackPanel Orientation="Horizontal" Visibility="{Binding IsCapturing, Converter={StaticResource Visible}, ConverterParameter=not}">
+                            <Border Style="{StaticResource Kbd}" Visibility="{Binding Text, Converter={StaticResource Visible}}">
+                                <TextBlock Text="{Binding Text}" FontSize="12" />
+                            </Border>
+                            <TextBlock Text="Click to set" VerticalAlignment="Center" Visibility="{Binding Text, Converter={StaticResource Visible}, ConverterParameter=not}" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="34" Height="34" Margin="6,0,0,0"
+                        Command="{Binding Clear}" ToolTip="Remove shortcut" AutomationProperties.Name="Remove shortcut"
+                        Visibility="{Binding Text, Converter={StaticResource Visible}}" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="26,22,26,32" MaxWidth="760" HorizontalAlignment="Left">
             <TextBlock Text="Settings" Style="{StaticResource H1}" />
@@ -49,25 +70,19 @@
                     </Border>
                     <Border Style="{StaticResource Row}">
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="34" Height="34" Margin="6,0,0,0"
-                                    Command="{Binding ClearStopAll}" ToolTip="Remove shortcut" AutomationProperties.Name="Remove Stop all shortcut"
-                                    Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}}" />
-                            <Button DockPanel.Dock="Right" Style="{StaticResource HotkeyButton}" Width="210" Command="{Binding CaptureStopAll}"
-                                    Tag="{Binding IsCapturingStopAll}" AutomationProperties.Name="Set Stop all shortcut">
-                                <Grid>
-                                    <TextBlock Text="Press a key combination…" Visibility="{Binding IsCapturingStopAll, Converter={StaticResource Visible}}" />
-                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsCapturingStopAll, Converter={StaticResource Visible}, ConverterParameter=not}">
-                                        <Border Style="{StaticResource Kbd}" Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}}">
-                                            <TextBlock Text="{Binding StopAllHotkeyText}" FontSize="12" />
-                                        </Border>
-                                        <TextBlock Text="Click to set" VerticalAlignment="Center"
-                                                   Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}, ConverterParameter=not}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
+                            <ContentControl DockPanel.Dock="Right" Content="{Binding StopAllShortcut}" ContentTemplate="{StaticResource ShortcutEditor}" Focusable="False" />
                             <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
                                 <TextBlock Text="Stop all shortcut" FontWeight="Medium" />
                                 <TextBlock Text="Silences everything, even while you're in a game" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Right" Content="{Binding MuteMicShortcut}" ContentTemplate="{StaticResource ShortcutEditor}" Focusable="False" />
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Mute microphone shortcut" FontWeight="Medium" />
+                                <TextBlock Text="Mutes your voice in voice chat; your sounds keep playing" Style="{StaticResource FaintText}" />
                             </StackPanel>
                         </DockPanel>
                     </Border>

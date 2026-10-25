@@ -1,62 +1,152 @@
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using VoxDeck.Core.Capture;
 
 namespace VoxDeck.Core.Audio;
 
-// One shared-mode output stream on the default device; every playing sound is a mixer input.
-// Decoding happens on the caller's thread so the audio callback only copies samples.
+// Two outputs: the "monitor" (what you hear) and, while voice mixing is on, the "call" — a virtual cable that
+// voice apps use as a microphone, carrying your mic plus your sounds. Each sound plays once per output, so the
+// two devices never have to share a clock. Decoding happens on the caller's thread; audio callbacks only copy.
 public sealed class SoundEngine : IDisposable
 {
     const int MaxVoices = 16;
-    const long CacheBudgetSamples = 8_000_000; // ~32 MB of float samples
+    const long CacheBudgetSamples = 16_000_000; // ~64 MB of float samples
     static readonly TimeSpan MaxCachedLength = TimeSpan.FromSeconds(30);
 
-    readonly MMDevice _device;
-    readonly WasapiOut _out;
-    readonly MixingSampleProvider _mixer;
-    readonly VolumeSampleProvider _master;
-    readonly WaveFormat _format;
-    readonly Dictionary<string, float[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+    readonly Dictionary<(string Path, int Rate), float[]> _cache = [];
     long _cachedSamples;
-    int _voices;
     int _generation;
+    Output? _monitor;
+    Output? _call;
+    MicInput? _mic;
+    float _masterVolume = 1;
+    float _callSoundVolume = 1;
+    float _micGain = 1;
+    bool _micMuted;
 
-    public SoundEngine()
-    {
-        using var devices = new MMDeviceEnumerator();
-        _device = devices.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-        _format = WaveFormat.CreateIeeeFloatWaveFormat(_device.AudioClient.MixFormat.SampleRate, 2);
-        _mixer = new MixingSampleProvider(_format) { ReadFully = true };
-        _mixer.MixerInputEnded += (_, e) =>
-        {
-            Interlocked.Decrement(ref _voices);
-            (e.SampleProvider as IDisposable)?.Dispose();
-        };
-        _master = new VolumeSampleProvider(_mixer);
-        // The stream runs even when silent; pause it while idle if idle CPU measures above budget.
-        _out = new WasapiOut(_device, AudioClientShareMode.Shared, true, 50);
-        _out.Init(_master);
-        _out.Play();
-    }
-
-    public float MasterVolume { get => _master.Volume; set => _master.Volume = value; }
+    /// <summary>A device stopped working (unplugged, disabled, driver error). Raised on the UI thread.</summary>
+    public event Action<string>? Failed;
 
     internal int Generation => Volatile.Read(ref _generation);
 
-    /// <summary>Returns null when every voice is busy.</summary>
+    public string? MonitorDeviceId => _monitor?.Id;
+    public string? MonitorName => _monitor?.Name;
+    public string? CallDeviceId => _call?.Id;
+    public string? MicDeviceId => _mic?.Id;
+    public bool MonitorFailed => _monitor?.Failed == true;
+    public bool VoiceMixFailed => _call?.Failed == true || _mic?.Failed == true;
+
+    /// <summary>Volume of sounds in your own headphones.</summary>
+    public float MasterVolume
+    {
+        get => _masterVolume;
+        set
+        {
+            _masterVolume = value;
+            if (_monitor is not null) _monitor.SoundVolume = value;
+        }
+    }
+
+    /// <summary>Volume of sounds in the voice chat, independent of what you hear.</summary>
+    public float CallSoundVolume
+    {
+        get => _callSoundVolume;
+        set
+        {
+            _callSoundVolume = value;
+            if (_call is not null) _call.SoundVolume = value;
+        }
+    }
+
+    /// <summary>VoxDeck's own mic gain; Windows' microphone level is never touched.</summary>
+    public float MicGain
+    {
+        get => _micGain;
+        set
+        {
+            _micGain = value;
+            if (_mic is not null) _mic.Gain = value;
+        }
+    }
+
+    public bool MicMuted
+    {
+        get => _micMuted;
+        set
+        {
+            _micMuted = value;
+            if (_mic is not null) _mic.Muted = value;
+        }
+    }
+
+    /// <summary>Opens (or reopens after a failure) the device you hear sounds on. Null closes it.</summary>
+    public void SetMonitorDevice(string? deviceId)
+    {
+        if (deviceId == _monitor?.Id && !MonitorFailed) return;
+        _monitor?.Dispose();
+        _monitor = null;
+        if (deviceId is null) return;
+        _monitor = new Output(deviceId, OnFailed) { SoundVolume = _masterVolume };
+    }
+
+    /// <summary>Starts sending the mic plus every new sound to the virtual cable.</summary>
+    public void StartVoiceMix(string cableDeviceId, string micDeviceId)
+    {
+        StopVoiceMix();
+        var call = new Output(cableDeviceId, OnFailed) { SoundVolume = _callSoundVolume };
+        try
+        {
+            _mic = new MicInput(micDeviceId, call.Format.SampleRate, OnFailed) { Gain = _micGain, Muted = _micMuted };
+            call.AddInput(_mic.Output);
+            _call = call;
+        }
+        catch
+        {
+            call.Dispose();
+            throw;
+        }
+    }
+
+    public void StopVoiceMix()
+    {
+        _mic?.Dispose();
+        _call?.Dispose();
+        _mic = null;
+        _call = null;
+    }
+
+    public float TakeMonitorPeak() => _monitor?.TakePeak() ?? 0;
+    public float TakeCallPeak() => _call?.TakePeak() ?? 0;
+    public float TakeMicPeak() => _mic?.TakePeak() ?? 0;
+
+    /// <summary>Returns null when every voice is busy. Throws when no output device is open.</summary>
     public Playback? Play(string path, TimeSpan from, TimeSpan loopStart, float volume, bool loop)
     {
+        var monitor = _monitor ?? throw new InvalidOperationException("No sound output device is open.");
         // New sounds are dropped when all voices are busy; steal the oldest if users notice.
-        if (Volatile.Read(ref _voices) >= MaxVoices) return null;
-        var playback = CreatePlayback(path);
-        playback.LoopStart = loopStart;
-        playback.Volume = volume;
-        playback.Loop = loop;
-        playback.Position = from;
-        Interlocked.Increment(ref _voices);
-        _mixer.AddMixerInput(playback);
-        return playback;
+        if (monitor.SoundCount >= MaxVoices) return null;
+
+        Output[] outputs = _call is null ? [monitor] : [monitor, _call];
+        var voices = new Voice[outputs.Length];
+        try
+        {
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var voice = CreateVoice(path, outputs[i].Format);
+                voice.LoopStart = loopStart;
+                voice.Volume = volume;
+                voice.Loop = loop;
+                voice.Position = from;
+                voices[i] = voice;
+            }
+        }
+        catch
+        {
+            foreach (var voice in voices) voice?.Dispose();
+            throw;
+        }
+        for (var i = 0; i < outputs.Length; i++) outputs[i].AddSound(voices[i]);
+        return new Playback(voices);
     }
 
     // Playbacks see the new generation on the next callback and end themselves.
@@ -65,7 +155,8 @@ public sealed class SoundEngine : IDisposable
     /// <summary>A short, quiet chime so people can check which device they hear.</summary>
     public void PlayTestTone()
     {
-        var rate = _format.SampleRate;
+        if (_monitor is null) return;
+        var rate = _monitor.Format.SampleRate;
         var frames = rate * 35 / 100;
         var fade = rate * 0.02;
         var samples = new float[frames * 2];
@@ -74,20 +165,33 @@ public sealed class SoundEngine : IDisposable
             var envelope = Math.Min(1, Math.Min(i, frames - i) / fade);
             samples[2 * i] = samples[2 * i + 1] = (float)(0.2 * envelope * Math.Sin(2 * Math.PI * 880 * i / rate));
         }
-        Interlocked.Increment(ref _voices);
-        _mixer.AddMixerInput(new Playback(this, Generation, _format, samples));
+        _monitor.AddSound(new Voice(this, Generation, _monitor.Format, samples));
     }
 
-    Playback CreatePlayback(string path)
+    /// <summary>Plays recorded stereo samples (any rate) on the monitor, e.g. a voice-chat test recording.</summary>
+    public void PlayClip(float[] samples, int sampleRate)
     {
-        if (_cache.TryGetValue(path, out var cached)) return new Playback(this, Generation, _format, cached);
+        if (_monitor is null) return;
+        var format = _monitor.Format;
+        var clip = sampleRate == format.SampleRate
+            ? samples
+            : ReadAll(new WdlResamplingSampleProvider(new Voice(null, 0, WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 2), samples), format.SampleRate));
+        _monitor.AddSound(new Voice(this, Generation, format, clip));
+    }
+
+    void OnFailed(string message) => Failed?.Invoke(message);
+
+    Voice CreateVoice(string path, WaveFormat format)
+    {
+        var key = (path.ToUpperInvariant(), format.SampleRate);
+        if (_cache.TryGetValue(key, out var cached)) return new Voice(this, Generation, format, cached);
 
         var reader = new AudioFileReader(path);
         try
         {
-            var source = ToMixFormat(reader);
+            var source = ToFormat(reader, format.SampleRate);
             // Long files stream from disk inside the audio callback; move reads to a buffered thread if they glitch.
-            if (reader.TotalTime > MaxCachedLength) return new Playback(this, Generation, _format, reader, source);
+            if (reader.TotalTime > MaxCachedLength) return new Voice(this, Generation, format, reader, source);
 
             var samples = ReadAll(source);
             reader.Dispose();
@@ -97,9 +201,9 @@ public sealed class SoundEngine : IDisposable
                 _cache.Clear();
                 _cachedSamples = 0;
             }
-            _cache[path] = samples;
+            _cache[key] = samples;
             _cachedSamples += samples.Length;
-            return new Playback(this, Generation, _format, samples);
+            return new Voice(this, Generation, format, samples);
         }
         catch
         {
@@ -108,7 +212,7 @@ public sealed class SoundEngine : IDisposable
         }
     }
 
-    ISampleProvider ToMixFormat(ISampleProvider source)
+    static ISampleProvider ToFormat(ISampleProvider source, int sampleRate)
     {
         source = source.WaveFormat.Channels switch
         {
@@ -116,9 +220,7 @@ public sealed class SoundEngine : IDisposable
             2 => source,
             var n => throw new NotSupportedException($"{n}-channel audio isn't supported yet."),
         };
-        return source.WaveFormat.SampleRate == _format.SampleRate
-            ? source
-            : new WdlResamplingSampleProvider(source, _format.SampleRate);
+        return source.WaveFormat.SampleRate == sampleRate ? source : new WdlResamplingSampleProvider(source, sampleRate);
     }
 
     static float[] ReadAll(ISampleProvider source)
@@ -132,7 +234,8 @@ public sealed class SoundEngine : IDisposable
 
     public void Dispose()
     {
-        _out.Dispose();
-        _device.Dispose();
+        StopVoiceMix();
+        _monitor?.Dispose();
+        _monitor = null;
     }
 }
