@@ -1,183 +1,130 @@
 using System.IO;
 using System.Windows.Threading;
 using VoxDeck.App.Features.Library;
+using VoxDeck.App.Features.Settings;
+using VoxDeck.App.Features.Toasts;
 using VoxDeck.Core.Audio;
-using VoxDeck.Core.Library;
 
 namespace VoxDeck.App.Features.Player;
 
-// Controls for the selected sound. The UI timer only runs while something is playing.
+// Starts sounds and tracks what is playing. The UI timer only runs while something plays.
 public sealed class PlayerViewModel : ViewModel
 {
-    const int WaveformBars = 140;
-
     readonly SoundEngine? _engine;
+    readonly SettingsViewModel _settings;
+    readonly ToastsViewModel _toasts;
     readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     readonly List<SoundItem> _playing = [];
 
-    public PlayerViewModel(SoundEngine? engine, string? error)
+    public PlayerViewModel(SoundEngine? engine, SettingsViewModel settings, ToastsViewModel toasts)
     {
         _engine = engine;
-        Error = error;
+        _settings = settings;
+        _toasts = toasts;
+        if (engine is not null) engine.MasterVolume = (float)settings.Current.MasterVolume;
         _timer.Tick += (_, _) => Tick();
-        TogglePlay = new Command(OnTogglePlay);
-        Stop = new Command(() => CurrentPlayback?.Stop());
-        Seek = new Command(p => SeekTo((double)p!));
-        SetStart = new Command(p => SetStartAt(p is double fraction ? fraction * Duration : CurrentPlayback?.Position.TotalSeconds));
-        ResetStart = new Command(() => SetStartAt(0));
+        StopAll = new Command(StopEverything);
     }
 
-    /// <summary>Raised when a sound's saved settings change.</summary>
-    public event Action? SoundEdited;
+    /// <summary>Raised after a sound starts, so the library can record when it was last played.</summary>
+    public event Action<SoundItem>? Started;
+    /// <summary>Raised about 30 times a second while anything plays.</summary>
+    public event Action? Ticked;
 
-    public SoundItem? Current
+    public SoundItem? NowPlaying { get; private set => Set(ref field, value); }
+    public bool AnyPlaying => _playing.Count > 0;
+    public double NowProgress => NowPlaying?.Progress ?? 0;
+    public string NowTitle => NowPlaying?.Model.Title ?? "Nothing playing";
+
+    public string NowSubtitle => NowPlaying?.Playback is { Ended: false } p
+        ? $"{(p.Paused ? "Paused" : SoundItem.Time(p.Position.TotalSeconds))} / {SoundItem.Time(p.Duration.TotalSeconds)}"
+          + (_playing.Count > 1 ? $"  ·  {_playing.Count} sounds playing" : "")
+        : "Click a sound or press its hotkey";
+
+    public string OutputName { get; set => Set(ref field, value); } = "";
+
+    public double MasterVolume
     {
-        get;
-        private set
-        {
-            if (field == value) return;
-            if (field is not null) field.IsCurrent = false;
-            field = value;
-            if (value is not null)
-            {
-                value.IsCurrent = true;
-                LoadWaveform(value);
-            }
-            Raise("");
-        }
-    }
-
-    public string? Error { get; private set => Set(ref field, value); }
-    public bool HasCurrent => Current is not null;
-    public bool IsPlaying => CurrentPlayback is { Paused: false };
-    public float[]? Peaks => Current?.Peaks;
-    public double Progress => Duration > 0 && CurrentPlayback is { } p ? p.Position.TotalSeconds / Duration : 0;
-    public double StartMarker => Duration > 0 ? (Current?.Model.StartSeconds ?? 0) / Duration : 0;
-    public bool HasStart => Current?.Model.StartSeconds > 0;
-    public string StartText => $"Starts at {SoundItem.Time(Current?.Model.StartSeconds ?? 0)}";
-
-    public string TimeText => Current is null
-        ? "Click a sound to play it"
-        : $"{SoundItem.Time(CurrentPlayback?.Position.TotalSeconds ?? Current.Model.StartSeconds)} / {SoundItem.Time(Duration)}";
-
-    public double Volume
-    {
-        get => Current?.Model.Volume ?? 1;
+        get => _settings.Current.MasterVolume;
         set
         {
-            if (Current is null) return;
-            Edit(Current, Current.Model with { Volume = value });
-            if (CurrentPlayback is { } p) p.Volume = (float)value;
+            _settings.Update(s => s with { MasterVolume = value });
+            if (_engine is not null) _engine.MasterVolume = (float)value;
+            Raise(nameof(MasterVolume));
         }
     }
 
-    public bool Loop
-    {
-        get => Current?.Model.Loop ?? false;
-        set
-        {
-            if (Current is null) return;
-            Edit(Current, Current.Model with { Loop = value });
-            if (CurrentPlayback is { } p) p.Loop = value;
-        }
-    }
-
-    public Command TogglePlay { get; }
-    public Command Stop { get; }
-    public Command Seek { get; }
-    public Command SetStart { get; }
-    public Command ResetStart { get; }
-
-    Playback? CurrentPlayback => Current?.Playback is { Ended: false } p ? p : null;
-    double Duration => Current?.Playback?.Duration.TotalSeconds ?? Current?.Model.DurationSeconds ?? 0;
+    public Command StopAll { get; }
 
     public void Play(SoundItem item, double? fromSeconds = null)
     {
-        Current = item;
-        Error = null;
         var sound = item.Model;
         if (_engine is null)
         {
-            Error = "No sound output device is available.";
+            _toasts.Error("No sound output device is available.");
             return;
         }
         if (!File.Exists(sound.Path))
         {
-            Error = $"\"{sound.Title}\" was moved or deleted: {sound.Path}";
+            item.IsMissing = true;
+            _toasts.Error($"“{sound.Title}” was moved or deleted.");
             return;
         }
+        if (!_settings.Current.OverlapSounds) _engine.StopAll();
         try
         {
             var playback = _engine.Play(sound.Path, TimeSpan.FromSeconds(fromSeconds ?? sound.StartSeconds),
                 TimeSpan.FromSeconds(sound.StartSeconds), (float)sound.Volume, sound.Loop);
             if (playback is null)
             {
-                Error = "Too many sounds are playing. Press Stop all.";
+                _toasts.Error("Too many sounds are playing. Press Stop all.");
                 return;
             }
             item.Playback = playback;
-            if (!_playing.Contains(item)) _playing.Add(item);
-            if (sound.DurationSeconds is null) Edit(item, sound with { DurationSeconds = playback.Duration.TotalSeconds });
+            _playing.Remove(item);
+            _playing.Add(item);
+            NowPlaying = item;
             _timer.Start();
+            Started?.Invoke(item);
             Tick();
         }
         catch (Exception ex)
         {
-            Error = $"Couldn't play \"{sound.Title}\": {ex.Message}";
+            _toasts.Error($"Couldn't play “{sound.Title}”: {ex.Message}");
         }
     }
 
-    public void Forget(SoundItem item)
+    /// <summary>Pause/resume when it's playing; otherwise start it.</summary>
+    public void Toggle(SoundItem item)
     {
-        if (Current == item) Current = null;
-    }
-
-    void OnTogglePlay()
-    {
-        if (CurrentPlayback is { } p)
+        if (item.Playback is { Ended: false } p)
         {
             p.Paused = !p.Paused;
-            Raise(nameof(IsPlaying));
+            Tick();
         }
-        else if (Current is not null)
+        else
         {
-            Play(Current);
+            Play(item);
         }
     }
 
-    void SeekTo(double fraction)
+    /// <summary>Jump to a 0..1 position, starting the sound there if it isn't playing.</summary>
+    public void Seek(SoundItem item, double fraction)
     {
-        if (Current is null || Duration <= 0) return;
-        var seconds = Math.Clamp(fraction, 0, 1) * Duration;
-        if (CurrentPlayback is { } p)
+        var duration = item.Playback?.Duration.TotalSeconds ?? item.Model.DurationSeconds ?? 0;
+        var seconds = Math.Clamp(fraction, 0, 1) * duration;
+        if (item.Playback is { Ended: false } p)
         {
             p.Position = TimeSpan.FromSeconds(seconds);
             Tick();
         }
         else
         {
-            Play(Current, seconds);
+            Play(item, duration > 0 ? seconds : null);
         }
     }
 
-    void SetStartAt(double? seconds)
-    {
-        if (Current is null) return;
-        if (seconds is null)
-        {
-            Error = "Play the sound, then press Set start at the moment it should begin.";
-            return;
-        }
-        Error = null;
-        Edit(Current, Current.Model with { StartSeconds = Math.Round(seconds.Value, 2) });
-    }
-
-    void Edit(SoundItem item, Sound model)
-    {
-        item.Model = model;
-        SoundEdited?.Invoke();
-        if (item == Current) Raise("");
-    }
+    public void StopEverything() => _engine?.StopAll();
 
     void Tick()
     {
@@ -187,35 +134,24 @@ public sealed class PlayerViewModel : ViewModel
             if (item.Playback is { Ended: false } p)
             {
                 item.IsPlaying = true;
+                item.IsPaused = p.Paused;
                 item.Progress = p.Duration > TimeSpan.Zero ? p.Position / p.Duration : 0;
             }
             else
             {
                 item.IsPlaying = false;
+                item.IsPaused = false;
                 item.Progress = 0;
                 item.Playback = null;
                 _playing.RemoveAt(i);
             }
         }
+        if (NowPlaying is { IsPlaying: false }) NowPlaying = _playing.LastOrDefault();
         if (_playing.Count == 0) _timer.Stop();
-        Raise(nameof(IsPlaying));
-        Raise(nameof(Progress));
-        Raise(nameof(TimeText));
-    }
-
-    async void LoadWaveform(SoundItem item)
-    {
-        if (item.Peaks is not null) return;
-        try
-        {
-            var (peaks, duration) = await Task.Run(() => Waveform.Load(item.Model.Path, WaveformBars));
-            item.Peaks = peaks;
-            if (item.Model.DurationSeconds is null) Edit(item, item.Model with { DurationSeconds = duration.TotalSeconds });
-            if (item == Current) Raise("");
-        }
-        catch (Exception)
-        {
-            // Missing or unreadable files are reported when played; the timeline just stays flat.
-        }
+        Raise(nameof(AnyPlaying));
+        Raise(nameof(NowProgress));
+        Raise(nameof(NowTitle));
+        Raise(nameof(NowSubtitle));
+        Ticked?.Invoke();
     }
 }

@@ -1,28 +1,38 @@
+using System.Diagnostics;
 using System.Windows.Threading;
+using VoxDeck.App.Features.Settings;
+using VoxDeck.Core.Audio;
 using VoxDeck.Core.Capture;
 using VoxDeck.Core.Devices;
 
 namespace VoxDeck.App.Features.AudioSetup;
 
-// The mic meter only runs while this page is on screen.
+// Device overview. The mic meter only runs while this page is on screen, so Windows' "mic in use" indicator stays off otherwise.
 public sealed class AudioSetupViewModel : ViewModel
 {
+    readonly SettingsViewModel _settings;
     readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     MicMeter? _meter;
 
-    public AudioSetupViewModel()
+    public AudioSetupViewModel(SettingsViewModel settings, SoundEngine? engine)
     {
+        _settings = settings;
         _timer.Tick += (_, _) => Level = Math.Max(ToMeterScale(_meter?.TakePeak() ?? 0), Level - 0.04);
         Refresh = new Command(() =>
         {
             LoadDevices();
-            StartMeter();
+            if (_timer.IsEnabled) StartMeter();
         });
+        TestOutput = new Command(() => engine?.PlayTestTone());
+        OpenSoundSettings = new Command(() => Process.Start(new ProcessStartInfo("ms-settings:sound") { UseShellExecute = true }));
+        LoadDevices();
     }
 
-    public string Title => "Audio setup";
+    public string Title => "Audio";
     public string Icon => "";
+    public string? Badge => null;
+
     public List<AudioDevice> Microphones { get; private set => Set(ref field, value); } = [];
 
     public AudioDevice? SelectedMic
@@ -30,15 +40,24 @@ public sealed class AudioSetupViewModel : ViewModel
         get;
         set
         {
-            if (Set(ref field, value) && _timer.IsEnabled) StartMeter();
+            if (!Set(ref field, value)) return;
+            if (value is not null && value.Id != _settings.Current.MicrophoneId) _settings.Update(s => s with { MicrophoneId = value.Id });
+            Raise(nameof(MicName));
+            Raise(nameof(MicState));
+            if (_timer.IsEnabled) StartMeter();
         }
     }
 
-    public string DefaultOutput { get; private set => Set(ref field, value); } = "";
+    public string MicName => SelectedMic?.Name ?? "No microphone found";
+    public string MicState => SelectedMic is null ? "Missing" : "Ready";
+    public string OutputName { get; private set => Set(ref field, value); } = "";
+    public bool HasOutput { get; private set => Set(ref field, value); }
     public string MicStatus { get; private set => Set(ref field, value); } = "";
     public double Level { get; private set => Set(ref field, value); }
 
     public Command Refresh { get; }
+    public Command TestOutput { get; }
+    public Command OpenSoundSettings { get; }
 
     public void Start()
     {
@@ -57,10 +76,13 @@ public sealed class AudioSetupViewModel : ViewModel
     void LoadDevices()
     {
         Microphones = AudioDevices.Microphones();
-        SelectedMic = Microphones.FirstOrDefault(d => d.Id == SelectedMic?.Id)
+        var wanted = SelectedMic?.Id ?? _settings.Current.MicrophoneId;
+        SelectedMic = Microphones.FirstOrDefault(d => d.Id == wanted)
                       ?? Microphones.FirstOrDefault(d => d.IsDefault)
                       ?? Microphones.FirstOrDefault();
-        DefaultOutput = AudioDevices.DefaultOutput()?.Name ?? "No output device found";
+        var output = AudioDevices.DefaultOutput();
+        OutputName = output?.Name ?? "No output device found";
+        HasOutput = output is not null;
     }
 
     void StartMeter()
@@ -68,7 +90,7 @@ public sealed class AudioSetupViewModel : ViewModel
         StopMeter();
         if (SelectedMic is null)
         {
-            MicStatus = "No microphone found. Connect one, then click Refresh.";
+            MicStatus = "No microphone found. Connect one, then press Refresh.";
             return;
         }
         try
@@ -76,10 +98,10 @@ public sealed class AudioSetupViewModel : ViewModel
             var meter = new MicMeter(SelectedMic.Id);
             meter.Failed += _ => _dispatcher.InvokeAsync(() =>
             {
-                if (_meter == meter) MicStatus = "Disconnected. Pick another microphone or click Refresh.";
+                if (_meter == meter) MicStatus = "This microphone was disconnected. Pick another one or press Refresh.";
             });
             _meter = meter;
-            MicStatus = "Connected. Speak and watch the level move.";
+            MicStatus = "Listening. Say something and watch the meter move.";
         }
         catch (Exception ex)
         {

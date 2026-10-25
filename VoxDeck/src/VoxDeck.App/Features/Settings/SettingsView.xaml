@@ -1,0 +1,112 @@
+<UserControl x:Class="VoxDeck.App.Features.Settings.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:VoxDeck.App.Controls"
+             controls:Motion.EnterOnLoad="True">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="26,22,26,32" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource H1}" />
+            <TextBlock Text="Changes are saved automatically." Style="{StaticResource MutedText}" Margin="0,4,0,20" />
+
+            <!-- Appearance -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Appearance" Style="{StaticResource Label}" Margin="16,14,16,10" />
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <ListBox DockPanel.Dock="Right" Style="{StaticResource Segmented}" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}"
+                                     AutomationProperties.Name="Theme" />
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="Theme" FontWeight="Medium" />
+                                <TextBlock Text="System follows your Windows light or dark mode" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="{Binding ReduceMotion}" AutomationProperties.Name="Reduce motion" />
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Reduce motion" FontWeight="Medium" />
+                                <TextBlock Text="Turns off transitions and hover effects" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Playback -->
+            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Playback" Style="{StaticResource Label}" Margin="16,14,16,10" />
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="{Binding OverlapSounds}" AutomationProperties.Name="Layer sounds" />
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Layer sounds" FontWeight="Medium" />
+                                <TextBlock Text="When off, starting a sound stops the others" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="34" Height="34" Margin="6,0,0,0"
+                                    Command="{Binding ClearStopAll}" ToolTip="Remove shortcut" AutomationProperties.Name="Remove Stop all shortcut"
+                                    Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource HotkeyButton}" Width="210" Command="{Binding CaptureStopAll}"
+                                    Tag="{Binding IsCapturingStopAll}" AutomationProperties.Name="Set Stop all shortcut">
+                                <Grid>
+                                    <TextBlock Text="Press a key combination…" Visibility="{Binding IsCapturingStopAll, Converter={StaticResource Visible}}" />
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsCapturingStopAll, Converter={StaticResource Visible}, ConverterParameter=not}">
+                                        <Border Style="{StaticResource Kbd}" Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}}">
+                                            <TextBlock Text="{Binding StopAllHotkeyText}" FontSize="12" />
+                                        </Border>
+                                        <TextBlock Text="Click to set" VerticalAlignment="Center"
+                                                   Visibility="{Binding StopAllHotkeyText, Converter={StaticResource Visible}, ConverterParameter=not}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Stop all shortcut" FontWeight="Medium" />
+                                <TextBlock Text="Silences everything, even while you're in a game" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Library -->
+            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Library" Style="{StaticResource Label}" Margin="16,14,16,10" />
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Command="{Binding OpenFolder}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE838;" FontSize="13" Margin="0,0,7,0" />
+                                    <TextBlock Text="Open folder" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Where VoxDeck keeps its data" FontWeight="Medium" />
+                                <TextBlock Text="{Binding LibraryFolder}" Style="{StaticResource FaintText}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <Border Style="{StaticResource Card}" Margin="0,18,0,0" Padding="16">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource AccentSoft}">
+                        <controls:LogoMark Width="24" Height="24" />
+                    </Border>
+                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="VoxDeck" FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="Version 0.2  ·  Everything stays on this PC. No accounts, no tracking." Style="{StaticResource FaintText}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

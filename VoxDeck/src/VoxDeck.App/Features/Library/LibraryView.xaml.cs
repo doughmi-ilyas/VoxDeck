@@ -1,29 +1,30 @@
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Controls;
-using Microsoft.Win32;
-using VoxDeck.Core.Library;
 
 namespace VoxDeck.App.Features.Library;
 
 public partial class LibraryView : UserControl
 {
+    const double TileMinWidth = 176;
+    const double TileGap = 12;
+
+    UniformGrid? _grid;
+
     public LibraryView() => InitializeComponent();
 
-    LibraryViewModel Vm => (LibraryViewModel)DataContext;
-
-    void OnImport(object sender, RoutedEventArgs e)
+    void OnGridLoaded(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Import sounds",
-            Multiselect = true,
-            Filter = $"Audio files|{string.Join(";", SoundLibrary.Extensions.Select(x => "*" + x))}",
-        };
-        if (dialog.ShowDialog() == true) Vm.Import(dialog.FileNames);
+        _grid = (UniformGrid)sender;
+        UpdateColumns();
     }
 
-    void OnDrop(object sender, DragEventArgs e)
+    void OnScrollerSizeChanged(object sender, SizeChangedEventArgs e) => UpdateColumns();
+
+    // CSS-style auto-fill: as many columns as fit at the minimum tile width, tiles stretch to fill the row.
+    void UpdateColumns()
     {
-        if (e.Data.GetData(DataFormats.FileDrop) is string[] files) Vm.Import(files);
+        if (_grid is null) return;
+        _grid.Columns = Math.Max(1, (int)((Scroller.ActualWidth - 10) / (TileMinWidth + TileGap)));
     }
 }

@@ -62,6 +62,22 @@ public sealed class SoundEngine : IDisposable
     // Playbacks see the new generation on the next callback and end themselves.
     public void StopAll() => Interlocked.Increment(ref _generation);
 
+    /// <summary>A short, quiet chime so people can check which device they hear.</summary>
+    public void PlayTestTone()
+    {
+        var rate = _format.SampleRate;
+        var frames = rate * 35 / 100;
+        var fade = rate * 0.02;
+        var samples = new float[frames * 2];
+        for (var i = 0; i < frames; i++)
+        {
+            var envelope = Math.Min(1, Math.Min(i, frames - i) / fade);
+            samples[2 * i] = samples[2 * i + 1] = (float)(0.2 * envelope * Math.Sin(2 * Math.PI * 880 * i / rate));
+        }
+        Interlocked.Increment(ref _voices);
+        _mixer.AddMixerInput(new Playback(this, Generation, _format, samples));
+    }
+
     Playback CreatePlayback(string path)
     {
         if (_cache.TryGetValue(path, out var cached)) return new Playback(this, Generation, _format, cached);

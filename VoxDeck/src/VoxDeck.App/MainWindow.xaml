@@ -1,12 +1,23 @@
 <Window x:Class="VoxDeck.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:VoxDeck.App.Controls"
         xmlns:library="clr-namespace:VoxDeck.App.Features.Library"
         xmlns:setup="clr-namespace:VoxDeck.App.Features.AudioSetup"
+        xmlns:settings="clr-namespace:VoxDeck.App.Features.Settings"
         xmlns:player="clr-namespace:VoxDeck.App.Features.Player"
-        Title="VoxDeck" Width="1180" Height="740" MinWidth="900" MinHeight="540" WindowStartupLocation="CenterScreen"
-        Background="{StaticResource Bg}" Foreground="{StaticResource Text}"
-        FontFamily="{StaticResource UiFont}" FontSize="13">
+        xmlns:editor="clr-namespace:VoxDeck.App.Features.Editor"
+        xmlns:palette="clr-namespace:VoxDeck.App.Features.Palette"
+        Title="VoxDeck" Width="1280" Height="800" MinWidth="920" MinHeight="580" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" FontFamily="{StaticResource UiFont}" FontSize="13"
+        AllowDrop="True" PreviewDragEnter="OnDragEnter" PreviewKeyDown="OnPreviewKeyDown">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl" Key="K" Command="{Binding OpenPalette}" />
+        <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding Import}" />
+    </Window.InputBindings>
     <Window.Resources>
         <DataTemplate DataType="{x:Type library:LibraryViewModel}">
             <library:LibraryView />
@@ -14,59 +25,173 @@
         <DataTemplate DataType="{x:Type setup:AudioSetupViewModel}">
             <setup:AudioSetupView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type settings:SettingsViewModel}">
+            <settings:SettingsView />
+        </DataTemplate>
     </Window.Resources>
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220" />
-            <ColumnDefinition />
-        </Grid.ColumnDefinitions>
+    <Grid x:Name="Root">
         <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
             <RowDefinition />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="68" />
         </Grid.RowDefinitions>
 
-        <!-- Sidebar: navigation on top, global controls at the bottom -->
-        <Border Background="{StaticResource Sunken}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
-            <DockPanel Margin="12,18,12,16">
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10,0,0,24">
-                    <Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource Accent}">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" Foreground="{StaticResource OnAccent}" HorizontalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="VoxDeck" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0" />
+        <!-- Title bar -->
+        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <controls:LogoMark x:Name="TitleMark" Width="16" Height="16" />
+                    <TextBlock Text="VoxDeck" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
-
-                <StackPanel DockPanel.Dock="Bottom">
-                    <DockPanel Margin="10,0,4,8">
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding MasterVolume, StringFormat={}{0:P0}}" Style="{StaticResource Caption}" />
-                        <TextBlock Text="Master volume" Style="{StaticResource Caption}" />
+                <Button Grid.Column="1" Style="{StaticResource TitleSearch}" Command="{Binding OpenPalette}"
+                        AutomationProperties.Name="Search sounds and actions">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Right" Style="{StaticResource Kbd}">
+                            <TextBlock Text="Ctrl K" />
+                        </Border>
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" />
+                        <TextBlock Text="Search sounds and actions" Margin="8,0,0,0" VerticalAlignment="Center" />
                     </DockPanel>
-                    <Slider Maximum="1" Value="{Binding MasterVolume}" Margin="10,0,4,16" AutomationProperties.Name="Master volume" />
-                    <Button Style="{StaticResource DangerButton}" Command="{Binding StopAll}" HorizontalContentAlignment="Center"
-                            ToolTip="Stop every sound that is playing" AutomationProperties.Name="Stop all">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="12" Margin="0,0,8,0" />
-                            <TextBlock Text="Stop all" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                </Button>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource TitleButton}" Content="&#xE921;" Click="OnMinimize" AutomationProperties.Name="Minimize" />
+                    <Button x:Name="MaxButton" Style="{StaticResource TitleButton}" Content="&#xE922;" Click="OnMaximize" AutomationProperties.Name="Maximize" />
+                    <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="OnClose" AutomationProperties.Name="Close" />
                 </StackPanel>
-
-                <ListBox ItemsSource="{Binding Pages}" SelectedItem="{Binding Page}" ItemContainerStyle="{StaticResource NavItem}"
-                         Background="Transparent" BorderThickness="0" AutomationProperties.Name="Navigation">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Icon}" Text="{Binding Icon}" Width="28" />
-                                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
+            </Grid>
         </Border>
 
-        <ContentControl Grid.Column="1" Content="{Binding Page}" Focusable="False" />
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="232" />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
 
-        <player:PlayerBar Grid.Row="1" Grid.ColumnSpan="2" DataContext="{Binding Player}" />
+            <!-- Sidebar -->
+            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="10,14,10,12">
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <TextBlock Text="DEVICES" Style="{StaticResource SectionLabel}" />
+                        <Button Style="{StaticResource Plain}" Command="{Binding GoToAudio}" AutomationProperties.Name="Audio devices" ToolTip="Open audio setup">
+                            <Border Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="12,10">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource Pill}">
+                                            <TextBlock Text="{Binding Audio.MicState}" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="14" Foreground="{DynamicResource Muted}" Margin="0,0,9,0" />
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Audio.MicName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="Microphone" Style="{StaticResource FaintText}" FontSize="11" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,10,0,0">
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource Pill}">
+                                            <TextBlock Text="OK" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" FontSize="14" Foreground="{DynamicResource Muted}" Margin="0,0,9,0" />
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Audio.OutputName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="Sound output" Style="{StaticResource FaintText}" FontSize="11" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+                        </Button>
+                        <Button Style="{StaticResource Quick}" Command="{Binding Import}" Margin="0,10,0,0" AutomationProperties.Name="Add sounds">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Right" Style="{StaticResource Kbd}">
+                                    <TextBlock Text="Ctrl O" />
+                                </Border>
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
+                                <TextBlock Text="Add sounds" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <ListBox Style="{StaticResource NavList}" ItemsSource="{Binding Pages}" SelectedItem="{Binding Page}"
+                             ItemContainerStyle="{StaticResource NavItem}" AutomationProperties.Name="Navigation">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Badge}" FontSize="11" Foreground="{DynamicResource Faint}" FontWeight="Medium" VerticalAlignment="Center" />
+                                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Icon}" FontSize="16" Width="28" />
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Page + editor drawer -->
+            <Grid Grid.Column="1" ClipToBounds="True">
+                <ContentControl Content="{Binding Page}" Focusable="False" />
+                <Border x:Name="Drawer" Width="340" HorizontalAlignment="Right" Visibility="Collapsed"
+                        Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="DrawerShift" X="380" />
+                    </Border.RenderTransform>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="40" ShadowDepth="0" Opacity="0.16" />
+                    </Border.Effect>
+                    <editor:SoundEditorView x:Name="EditorView" DataContext="{Binding Editor}" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <player:PlayerBar Grid.Row="2" DataContext="{Binding Player}" />
+
+        <!-- Toasts -->
+        <ItemsControl Grid.RowSpan="3" ItemsSource="{Binding Toasts.Items}" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                      Margin="0,0,0,82" Focusable="False">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="12"
+                            Padding="14,10,10,10" Margin="0,8,0,0" MinWidth="300" MaxWidth="560" controls:Motion.EnterOnLoad="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="32" ShadowDepth="8" Direction="270" Opacity="0.22" />
+                        </Border.Effect>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Ghost}" Height="28" Padding="10,0" Margin="12,0,0,0"
+                                    Content="{Binding ActionText}" Foreground="{DynamicResource Accent}"
+                                    Command="{Binding DataContext.Toasts.RunAction, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                                    Visibility="{Binding ActionText, Converter={StaticResource Visible}}" />
+                            <TextBlock x:Name="Glyph" Style="{StaticResource Icon}" Text="{Binding Icon}" Foreground="{DynamicResource Accent}" Margin="0,0,10,0" />
+                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        </DockPanel>
+                    </Border>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Kind}" Value="error">
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Danger}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="ok">
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Ok}" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Drop zone while files are dragged over the window -->
+        <Border Grid.RowSpan="3" Background="{DynamicResource Backdrop}" AllowDrop="True" Drop="OnDrop" DragLeave="OnDragLeave"
+                Visibility="{Binding IsDraggingFiles, Converter={StaticResource Visible}}">
+            <Grid Margin="40" IsHitTestVisible="False">
+                <Rectangle RadiusX="20" RadiusY="20" Stroke="{DynamicResource Accent}" StrokeThickness="2" StrokeDashArray="6 4" Fill="{DynamicResource Surface}" Opacity="0.94" />
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="34" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
+                    <TextBlock Text="Drop to add sounds" Style="{StaticResource H2}" FontSize="18" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                    <TextBlock Text="WAV, MP3, M4A, AAC, WMA and FLAC. Your files stay where they are." Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <palette:PaletteView Grid.RowSpan="3" DataContext="{Binding Palette}" Visibility="{Binding IsOpen, Converter={StaticResource Visible}}" />
     </Grid>
 </Window>
