@@ -22,7 +22,15 @@ public sealed record AppSettings(
 {
     public static readonly string DefaultPath = Path.Combine(JsonFile.AppFolder, "settings.json");
 
-    public static AppSettings Load(string path) => JsonFile.Load<AppSettings>(path) ?? new();
+    // Older builds let the mixer faders reach 10× volume; pull saved values back into range.
+    public static AppSettings Load(string path) => JsonFile.Load<AppSettings>(path) is { } s
+        ? s with
+        {
+            MasterVolume = Math.Clamp(s.MasterVolume, 0, 1),
+            CallSoundVolume = Math.Clamp(s.CallSoundVolume, 0, 1),
+            MicGain = Math.Clamp(s.MicGain, 0, 2),
+        }
+        : new();
 
     public void Save(string path) => JsonFile.Save(path, this);
 }

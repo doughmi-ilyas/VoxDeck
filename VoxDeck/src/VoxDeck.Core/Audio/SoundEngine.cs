@@ -119,14 +119,20 @@ public sealed class SoundEngine : IDisposable
     public float TakeCallPeak() => _call?.TakePeak() ?? 0;
     public float TakeMicPeak() => _mic?.TakePeak() ?? 0;
 
-    /// <summary>Returns null when every voice is busy. Throws when no output device is open.</summary>
-    public Playback? Play(string path, TimeSpan from, TimeSpan loopStart, float volume, bool loop)
+    /// <summary>
+    /// Returns null when every voice is busy. Throws InvalidOperationException with a readable message
+    /// when the route has nowhere to play (no output device, or voice chat only while mixing is off).
+    /// </summary>
+    public Playback? Play(string path, TimeSpan from, TimeSpan loopStart, float volume, bool loop, SoundRoute route = SoundRoute.Both)
     {
-        var monitor = _monitor ?? throw new InvalidOperationException("No sound output device is open.");
+        var outputs = SoundRoutes.Pick(route, _monitor, _call);
+        if (outputs.Length == 0)
+            throw new InvalidOperationException(route == SoundRoute.CallOnly
+                ? "This sound only plays in voice chat, and voice mixing is off. Turn on “Send to voice chat” in the Mixer."
+                : "No sound output device is open.");
         // New sounds are dropped when all voices are busy; steal the oldest if users notice.
-        if (monitor.SoundCount >= MaxVoices) return null;
+        if (outputs[0].SoundCount >= MaxVoices) return null;
 
-        Output[] outputs = _call is null ? [monitor] : [monitor, _call];
         var voices = new Voice[outputs.Length];
         try
         {

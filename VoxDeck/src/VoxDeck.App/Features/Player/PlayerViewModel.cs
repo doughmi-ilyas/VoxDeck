@@ -69,7 +69,7 @@ public sealed class PlayerViewModel : ViewModel
         try
         {
             var playback = _engine.Play(sound.Path, TimeSpan.FromSeconds(fromSeconds ?? sound.StartSeconds),
-                TimeSpan.FromSeconds(sound.StartSeconds), (float)sound.Volume, sound.Loop);
+                TimeSpan.FromSeconds(sound.StartSeconds), (float)sound.Volume, sound.Loop, sound.Route);
             if (playback is null)
             {
                 _toasts.Error("Too many sounds are playing. Press Stop all.");
@@ -82,6 +82,10 @@ public sealed class PlayerViewModel : ViewModel
             _timer.Start();
             Started?.Invoke(item);
             Tick();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toasts.Error(ex.Message); // nowhere to play it; the message says what to change
         }
         catch (Exception ex)
         {

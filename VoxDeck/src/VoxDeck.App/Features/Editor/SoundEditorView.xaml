@@ -68,6 +68,13 @@
                     <Slider Value="{Binding Volume}" AutomationProperties.Name="Sound volume" />
                 </DockPanel>
 
+                <TextBlock Text="Who hears it" Style="{StaticResource Label}" Margin="0,18,0,6" />
+                <ListBox Style="{StaticResource Segmented}" ItemsSource="{Binding RouteOptions}" SelectedItem="{Binding Route}"
+                         DisplayMemberPath="Label" AutomationProperties.Name="Who hears it" />
+                <TextBlock Text="{Binding Route.Help}" Style="{StaticResource FaintText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                <TextBlock Text="{Binding RouteWarning}" Foreground="{DynamicResource Warn}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Visibility="{Binding RouteWarning, Converter={StaticResource Visible}}" />
+
                 <TextBlock Text="Hotkey" Style="{StaticResource Label}" Margin="0,18,0,6" />
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="36" Height="36" Margin="8,0,0,0"

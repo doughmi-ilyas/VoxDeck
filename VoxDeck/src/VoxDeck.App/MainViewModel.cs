@@ -28,7 +28,7 @@ public sealed class MainViewModel : ViewModel, IDisposable
         Settings.AttachHotkeys(Hotkeys);
         Library.Hotkeys = Hotkeys;
         Audio = new AudioSetupViewModel(Settings, _engine, Router);
-        Editor = new SoundEditorViewModel(Library, Player, Hotkeys, Toasts);
+        Editor = new SoundEditorViewModel(Library, Player, Hotkeys, Toasts, Router);
         Library.EditRequested += Editor.Open;
         Palette = new PaletteViewModel(PaletteEntries);
         Router.Changed += () => Player.OutputName = Router.MonitorName;

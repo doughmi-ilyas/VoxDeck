@@ -52,6 +52,8 @@ public sealed class SoundItem : ViewModel
         {
             if (IsMissing) return "File missing";
             var parts = new List<string> { Model.Format };
+            if (Model.Route == SoundRoute.MeOnly) parts.Add("Only me");
+            if (Model.Route == SoundRoute.CallOnly) parts.Add("Only chat");
             if (Model.Loop) parts.Add("Loop");
             if (Model.StartSeconds > 0) parts.Add($"from {Time(Model.StartSeconds)}");
             return string.Join(" · ", parts);

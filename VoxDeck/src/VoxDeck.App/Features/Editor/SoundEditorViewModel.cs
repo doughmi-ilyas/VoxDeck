@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using VoxDeck.App.Features.Library;
+using VoxDeck.App.Features.Mixer;
 using VoxDeck.App.Features.Player;
 using VoxDeck.App.Features.Toasts;
 using VoxDeck.App.Hotkeys;
@@ -18,13 +19,16 @@ public sealed class SoundEditorViewModel : ViewModel
     readonly PlayerViewModel _player;
     readonly HotkeyManager _hotkeys;
     readonly ToastsViewModel _toasts;
+    readonly AudioRouter _router;
 
-    public SoundEditorViewModel(LibraryViewModel library, PlayerViewModel player, HotkeyManager hotkeys, ToastsViewModel toasts)
+    public SoundEditorViewModel(LibraryViewModel library, PlayerViewModel player, HotkeyManager hotkeys, ToastsViewModel toasts, AudioRouter router)
     {
         _library = library;
         _player = player;
         _hotkeys = hotkeys;
         _toasts = toasts;
+        _router = router;
+        router.Changed += () => Raise(nameof(RouteWarning));
         player.Ticked += () =>
         {
             if (!IsOpen) return;
@@ -84,6 +88,27 @@ public sealed class SoundEditorViewModel : ViewModel
             if (Item.Playback is { Ended: false } p) p.Loop = value;
         }
     }
+
+    public RouteOption[] RouteOptions { get; } =
+    [
+        new(SoundRoute.Both, "Both", "You and your voice chat hear it."),
+        new(SoundRoute.MeOnly, "Only me", "Plays in your headphones. Your voice chat doesn't hear it."),
+        new(SoundRoute.CallOnly, "Only chat", "Your voice chat hears it. You don't."),
+    ];
+
+    public RouteOption Route
+    {
+        get => RouteOptions.First(o => o.Route == (Item?.Model.Route ?? SoundRoute.Both));
+        set
+        {
+            if (Item is not null && value is not null) Edit(Item.Model with { Route = value.Route });
+        }
+    }
+
+    // Takes effect from the next play; a playing sound keeps its outputs.
+    public string? RouteWarning => Item?.Model.Route == SoundRoute.CallOnly && !_router.IsRunning
+        ? "Voice mixing is off, so this sound won't play anywhere. Turn on “Send to voice chat” in the Mixer."
+        : null;
 
     public bool Favorite
     {
@@ -186,4 +211,9 @@ public sealed class SoundEditorViewModel : ViewModel
             // Missing or unreadable files show the tile waveform (or a flat line) and are reported when played.
         }
     }
+}
+
+public sealed record RouteOption(SoundRoute Route, string Label, string Help)
+{
+    public override string ToString() => Label; // what screen readers announce
 }

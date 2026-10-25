@@ -1,7 +1,7 @@
 namespace VoxDeck.Core.Audio;
 
-// One press of a sound: the same audio playing on every active output — your headphones,
-// plus the voice-chat cable while voice mixing is on. The first voice is the one you hear.
+// One press of a sound: the same audio playing on each output its route allows — your headphones
+// and/or the voice-chat cable. Position and duration come from the first one.
 public sealed class Playback
 {
     readonly Voice[] _voices;
