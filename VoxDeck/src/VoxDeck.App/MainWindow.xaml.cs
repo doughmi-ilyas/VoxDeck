@@ -24,6 +24,10 @@ public partial class MainWindow : Window
         _vm = new MainViewModel();
         DataContext = _vm;
         _vm.Editor.PropertyChanged += OnEditorChanged;
+        _vm.Onboarding.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(_vm.Onboarding.IsOpen) && !_vm.Onboarding.IsOpen) EnterShell();
+        };
         ThemeManager.Changed += ApplyWindowTheme;
         Loaded += (_, _) => TitleMark.Play();
         Closed += (_, _) => _vm.Dispose();
@@ -70,10 +74,34 @@ public partial class MainWindow : Window
             return;
         }
         if (key != Key.Escape) return;
-        if (_vm.Palette.IsOpen) _vm.Palette.Close();
+        if (_vm.Modals.Current is not null) _vm.Modals.Hide();
+        else if (_vm.Palette.IsOpen) _vm.Palette.Close();
         else if (_vm.Editor.IsOpen) _vm.Editor.Close();
         else return;
         e.Handled = true;
+    }
+
+    // After the onboarding: the sidebar slides in from the left, the page rises, the player comes up from below.
+    void EnterShell()
+    {
+        Slide(Sidebar, TranslateTransform.XProperty, -30, 0);
+        Slide(PageHost, TranslateTransform.YProperty, 16, 100);
+        Slide(Bar, TranslateTransform.YProperty, 30, 200);
+    }
+
+    static void Slide(UIElement element, DependencyProperty axis, double from, int delay)
+    {
+        var move = element.RenderTransform as TranslateTransform ?? new TranslateTransform();
+        element.RenderTransform = move;
+        Motion.Animate(element, OpacityProperty, 1, 800, delay: delay, from: 0);
+        Motion.Animate(move, axis, 0, 800, delay: delay, from: from);
+    }
+
+    // Narrow windows get an icon-only sidebar, leaving room for the sounds.
+    void OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        _vm.IsWide = ActualWidth >= 1000;
+        SidebarColumn.Width = new GridLength(_vm.IsWide ? 232 : 64);
     }
 
     void OnEditorChanged(object? sender, PropertyChangedEventArgs e)

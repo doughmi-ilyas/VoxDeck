@@ -9,9 +9,10 @@
         xmlns:editor="clr-namespace:VoxDeck.App.Features.Editor"
         xmlns:palette="clr-namespace:VoxDeck.App.Features.Palette"
         xmlns:mixer="clr-namespace:VoxDeck.App.Features.Mixer"
-        Title="VoxDeck" Width="1280" Height="800" MinWidth="920" MinHeight="580" WindowStartupLocation="CenterScreen"
+        xmlns:onboarding="clr-namespace:VoxDeck.App.Features.Onboarding"
+        Title="VoxDeck" Width="1280" Height="800" MinWidth="760" MinHeight="560" WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" FontFamily="{StaticResource UiFont}" FontSize="13"
-        AllowDrop="True" PreviewDragEnter="OnDragEnter" PreviewKeyDown="OnPreviewKeyDown">
+        AllowDrop="True" PreviewDragEnter="OnDragEnter" PreviewKeyDown="OnPreviewKeyDown" SizeChanged="OnSizeChanged">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" CornerRadius="0" UseAeroCaptionButtons="False" />
     </WindowChrome.WindowChrome>
@@ -20,6 +21,10 @@
         <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding Import}" />
     </Window.InputBindings>
     <Window.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="Features/Modals/Modals.xaml" />
+        </ResourceDictionary.MergedDictionaries>
         <DataTemplate DataType="{x:Type library:LibraryViewModel}">
             <library:LibraryView />
         </DataTemplate>
@@ -32,13 +37,14 @@
         <DataTemplate DataType="{x:Type mixer:MixerViewModel}">
             <mixer:MixerView />
         </DataTemplate>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid x:Name="Root">
         <Grid.RowDefinitions>
             <RowDefinition Height="40" />
             <RowDefinition />
-            <RowDefinition Height="68" />
+            <RowDefinition Height="80" />
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
@@ -54,6 +60,7 @@
                     <TextBlock Text="VoxDeck" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
                 <Button Grid.Column="1" Style="{StaticResource TitleSearch}" Command="{Binding OpenPalette}"
+                        Visibility="{Binding Onboarding.IsOpen, Converter={StaticResource Visible}, ConverterParameter=not}"
                         AutomationProperties.Name="Search sounds and actions">
                     <DockPanel>
                         <Border DockPanel.Dock="Right" Style="{StaticResource Kbd}">
@@ -73,14 +80,15 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="232" />
+                <!-- 232 wide, or icons only in a narrow window (see OnSizeChanged) -->
+                <ColumnDefinition x:Name="SidebarColumn" Width="232" />
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
 
             <!-- Sidebar -->
-            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+            <Border x:Name="Sidebar" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
                 <DockPanel Margin="10,14,10,12">
-                    <StackPanel DockPanel.Dock="Bottom">
+                    <StackPanel DockPanel.Dock="Bottom" Visibility="{Binding IsWide, Converter={StaticResource Visible}}">
                         <TextBlock Text="DEVICES" Style="{StaticResource SectionLabel}" />
                         <Button Style="{StaticResource Plain}" Command="{Binding GoToAudio}" AutomationProperties.Name="Audio devices" ToolTip="Open audio setup">
                             <Border Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="12,10">
@@ -145,10 +153,12 @@
                              ItemContainerStyle="{StaticResource NavItem}" AutomationProperties.Name="Navigation">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Badge}" FontSize="11" Foreground="{DynamicResource Faint}" FontWeight="Medium" VerticalAlignment="Center" />
+                                <DockPanel ToolTip="{Binding Title}">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Badge}" FontSize="11" Foreground="{DynamicResource Faint}" FontWeight="Medium" VerticalAlignment="Center"
+                                               Visibility="{Binding DataContext.IsWide, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" />
                                     <TextBlock Style="{StaticResource Icon}" Text="{Binding Icon}" FontSize="16" Width="28" />
-                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center"
+                                               Visibility="{Binding DataContext.IsWide, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" />
                                 </DockPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -157,7 +167,7 @@
             </Border>
 
             <!-- Page + editor drawer -->
-            <Grid Grid.Column="1" ClipToBounds="True">
+            <Grid x:Name="PageHost" Grid.Column="1" ClipToBounds="True">
                 <ContentControl Content="{Binding Page}" Focusable="False" />
                 <Border x:Name="Drawer" Width="340" HorizontalAlignment="Right" Visibility="Collapsed"
                         Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
@@ -172,11 +182,26 @@
             </Grid>
         </Grid>
 
-        <player:PlayerBar Grid.Row="2" DataContext="{Binding Player}" />
+        <player:PlayerBar x:Name="Bar" Grid.Row="2" DataContext="{Binding Player}" />
+
+        <!-- First-run setup, over everything but the title bar -->
+        <onboarding:OnboardingView Grid.Row="1" Grid.RowSpan="2" DataContext="{Binding Onboarding}"
+                                   Visibility="{Binding IsOpen, Converter={StaticResource Visible}}" />
+
+        <!-- Dialogs: one at a time over everything; Esc or a click outside closes it -->
+        <Grid Grid.RowSpan="3" Visibility="{Binding Modals.Current, Converter={StaticResource Visible}}">
+            <Border Background="{DynamicResource Backdrop}">
+                <Border.InputBindings>
+                    <MouseBinding Gesture="LeftClick" Command="{Binding Modals.Close}" />
+                </Border.InputBindings>
+            </Border>
+            <ContentControl Content="{Binding Modals.Current}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24"
+                            Focusable="False" KeyboardNavigation.TabNavigation="Cycle" />
+        </Grid>
 
         <!-- Toasts -->
         <ItemsControl Grid.RowSpan="3" ItemsSource="{Binding Toasts.Items}" VerticalAlignment="Bottom" HorizontalAlignment="Center"
-                      Margin="0,0,0,82" Focusable="False">
+                      Margin="16,0,16,90" Focusable="False">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="12"

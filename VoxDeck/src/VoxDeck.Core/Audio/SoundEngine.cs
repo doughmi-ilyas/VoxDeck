@@ -128,7 +128,7 @@ public sealed class SoundEngine : IDisposable
         var outputs = SoundRoutes.Pick(route, _monitor, _call);
         if (outputs.Length == 0)
             throw new InvalidOperationException(route == SoundRoute.CallOnly
-                ? "This sound only plays in voice chat, and voice mixing is off. Turn on “Send to voice chat” in the Mixer."
+                ? "Sounds are set to play only in voice chat, but voice chat is off. Turn on “Send to voice chat” in the Mixer, or switch to “Me”."
                 : "No sound output device is open.");
         // New sounds are dropped when all voices are busy; steal the oldest if users notice.
         if (outputs[0].SoundCount >= MaxVoices) return null;

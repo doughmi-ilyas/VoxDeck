@@ -1,3 +1,4 @@
+using VoxDeck.Core.Audio;
 using VoxDeck.Core.Hotkeys;
 
 namespace VoxDeck.Core.Settings;
@@ -5,6 +6,7 @@ namespace VoxDeck.Core.Settings;
 /// <param name="Theme">"System", "Light" or "Dark".</param>
 /// <param name="MonitorDeviceId">Where you hear sounds; null follows the Windows default.</param>
 /// <param name="CableDeviceId">Playback side of the virtual cable used for voice chat; null picks the first one found.</param>
+/// <param name="SoundRoute">Who hears every sound: you, your voice chat, or both.</param>
 public sealed record AppSettings(
     string Theme = "System",
     bool ReduceMotion = false,
@@ -18,7 +20,9 @@ public sealed record AppSettings(
     double MicGain = 1,
     bool MicMuted = false,
     double CallSoundVolume = 0.8,
-    Hotkey? MuteMicHotkey = null)
+    Hotkey? MuteMicHotkey = null,
+    SoundRoute SoundRoute = SoundRoute.Both,
+    bool OnboardingDone = false)
 {
     public static readonly string DefaultPath = Path.Combine(JsonFile.AppFolder, "settings.json");
 

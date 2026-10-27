@@ -23,6 +23,6 @@ public class SoundRouteTests
         Assert.Empty(SoundRoutes.Pick(SoundRoute.CallOnly, Headset, null));
 
     [Fact]
-    public void OldLibraries_DefaultToBoth() =>
-        Assert.Equal(SoundRoute.Both, new Library.Sound("a", "b").Route);
+    public void OldSettings_DefaultToBoth() =>
+        Assert.Equal(SoundRoute.Both, new Settings.AppSettings().SoundRoute);
 }

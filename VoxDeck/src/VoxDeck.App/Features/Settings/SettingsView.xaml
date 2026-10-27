@@ -112,15 +112,24 @@
 
             <!-- About -->
             <Border Style="{StaticResource Card}" Margin="0,18,0,0" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource AccentSoft}">
-                        <controls:LogoMark Width="24" Height="24" />
-                    </Border>
-                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="VoxDeck" FontSize="15" FontWeight="SemiBold" />
-                        <TextBlock Text="Version 0.2  ·  Everything stays on this PC. No accounts, no tracking." Style="{StaticResource FaintText}" />
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Command="{Binding DataContext.Onboarding.Restart, RelativeSource={RelativeSource AncestorType=Window}}"
+                            VerticalAlignment="Center" Margin="12,0,0,0" ToolTip="Walk through mic, headphones, sounds, shortcut and voice chat again">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,8,0" />
+                            <TextBlock Text="Run setup again" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource AccentSoft}">
+                            <controls:LogoMark Width="24" Height="24" />
+                        </Border>
+                        <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="VoxDeck" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="Version 0.2  ·  Everything stays on this PC. No accounts, no tracking." Style="{StaticResource FaintText}" TextWrapping="Wrap" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </DockPanel>
             </Border>
         </StackPanel>
     </ScrollViewer>

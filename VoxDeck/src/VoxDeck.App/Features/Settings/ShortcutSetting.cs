@@ -25,6 +25,11 @@ public sealed class ShortcutSetting : ViewModel
     public Command Capture { get; }
     public Command Clear { get; }
 
+    public void CancelIfCapturing()
+    {
+        if (IsCapturing) _hotkeys.CancelCapture();
+    }
+
     void OnCapture()
     {
         if (IsCapturing)

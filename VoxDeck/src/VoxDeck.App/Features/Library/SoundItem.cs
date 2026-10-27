@@ -44,6 +44,8 @@ public sealed class SoundItem : ViewModel
         }
     }
     public bool HotkeyFailed { get; set => Set(ref field, value); }
+    /// <summary>Another sound is being dragged over this one (reordering a playlist).</summary>
+    public bool IsDropTarget { get; set => Set(ref field, value); }
     public double Progress { get; set => Set(ref field, value); }
 
     public string Tag
@@ -52,8 +54,6 @@ public sealed class SoundItem : ViewModel
         {
             if (IsMissing) return "File missing";
             var parts = new List<string> { Model.Format };
-            if (Model.Route == SoundRoute.MeOnly) parts.Add("Only me");
-            if (Model.Route == SoundRoute.CallOnly) parts.Add("Only chat");
             if (Model.Loop) parts.Add("Loop");
             if (Model.StartSeconds > 0) parts.Add($"from {Time(Model.StartSeconds)}");
             return string.Join(" · ", parts);

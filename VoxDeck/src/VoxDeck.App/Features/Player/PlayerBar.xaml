@@ -1,21 +1,90 @@
 <UserControl x:Class="VoxDeck.App.Features.Player.PlayerBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="clr-namespace:VoxDeck.App.Controls">
-    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="18,0">
+             xmlns:controls="clr-namespace:VoxDeck.App.Controls"
+             SizeChanged="OnSizeChanged">
+    <UserControl.Resources>
+        <!-- Round icon buttons, Spotify-style -->
+        <Style x:Key="BarIcon" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.35" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- On/off icon (shuffle, repeat, mic, panels): accent with a dot when on -->
+        <Style x:Key="BarToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+            <Setter Property="controls:Motion.PressScale" Value="0.88" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Bg" CornerRadius="17" Background="Transparent" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Ellipse x:Name="Dot" Width="4" Height="4" Fill="{DynamicResource Accent}" VerticalAlignment="Bottom" Margin="0,0,0,2" Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Hover}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Text}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TimeText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource Faint}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        </Style>
+        <Style x:Key="PopupCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Line2}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Margin" Value="10" />
+            <Setter Property="TextElement.FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="TextElement.FontSize" Value="13" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource Text}" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.22" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="16,0">
         <Grid>
+            <!-- Left and right share the leftovers equally, so the controls stay centred at any width -->
             <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
+                <ColumnDefinition Width="*" MinWidth="150" />
+                <ColumnDefinition Width="2*" MinWidth="280" MaxWidth="620" />
+                <ColumnDefinition Width="*" MinWidth="150" />
             </Grid.ColumnDefinitions>
 
             <!-- Now playing (click to edit it) -->
-            <Button Style="{StaticResource Plain}" HorizontalAlignment="Left" VerticalAlignment="Center"
+            <Button Style="{StaticResource Plain}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"
                     Command="{Binding DataContext.OpenNowPlaying, RelativeSource={RelativeSource AncestorType=Window}}"
-                    AutomationProperties.Name="Now playing" ToolTip="Edit the playing sound">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="40" Height="40" CornerRadius="9" BorderThickness="1">
+                    AutomationProperties.Name="Now playing" ToolTip="Edit this sound">
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="8" BorderThickness="1">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Background" Value="{DynamicResource Surface2}" />
@@ -28,56 +97,247 @@
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
-                        <controls:LogoMark Width="20" Height="20" IsActive="{Binding AnyPlaying}" />
+                        <controls:LogoMark Width="22" Height="22" IsActive="{Binding AnyPlaying}" />
                     </Border>
-                    <StackPanel Width="270" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding NowTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding NowSubtitle}" Style="{StaticResource FaintText}" />
-                        <ProgressBar Style="{StaticResource NowBar}" Value="{Binding NowProgress, Mode=OneWay}" Margin="0,6,0,0"
-                                     Visibility="{Binding AnyPlaying, Converter={StaticResource Visible}}" />
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding NowTitle}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding NowSubtitle}" Style="{StaticResource FaintText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
                     </StackPanel>
-                </StackPanel>
+                </DockPanel>
             </Button>
 
-            <!-- Stop all -->
-            <Button Grid.Column="1" Style="{StaticResource StopPill}" Command="{Binding StopAll}" Tag="{Binding AnyPlaying}"
-                    AutomationProperties.Name="Stop all sounds" ToolTip="Stop every sound that is playing">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                    <TextBlock Text="Stop all" Margin="8,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
-
-            <!-- Output + master volume -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <!-- Mic mute + level, shown while voice mixing is live -->
-                <ToggleButton DataContext="{Binding DataContext.Mixer, RelativeSource={RelativeSource AncestorType=Window}}"
-                              Style="{StaticResource MuteToggle}" Height="34" Padding="0" Margin="0,0,20,0" IsChecked="{Binding MicMuted}"
-                              Visibility="{Binding Router.IsRunning, Converter={StaticResource Visible}}"
-                              AutomationProperties.Name="Mute microphone" ToolTip="Mute your microphone in voice chat">
-                    <StackPanel Orientation="Horizontal" Margin="10,0">
-                        <TextBlock x:Name="MicGlyph" FontSize="14">
+            <!-- Centre: controls on top, the seek bar below -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ToggleButton Style="{StaticResource BarToggle}" Content="&#xE8B1;" IsChecked="{Binding Shuffle}"
+                                  ToolTip="Shuffle playlists" AutomationProperties.Name="Shuffle" />
+                    <Button Style="{StaticResource BarIcon}" Content="&#xE892;" Margin="8,0,0,0" Command="{Binding Previous}" IsEnabled="{Binding CanPause}"
+                            ToolTip="Previous (or back to the start)" AutomationProperties.Name="Previous" />
+                    <Button Command="{Binding PauseResume}" IsEnabled="{Binding CanPause}" Width="38" Height="38" Margin="10,0" AutomationProperties.Name="Pause or resume">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource PlayBig}">
+                                <Setter Property="ToolTip" Value="Pause" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.35" />
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding NowPaused}" Value="True">
+                                        <Setter Property="ToolTip" Value="Resume" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock FontSize="14">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
-                                    <Setter Property="Text" Value="&#xE720;" />
+                                    <Setter Property="Text" Value="&#xE769;" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding MicMuted}" Value="True">
-                                            <Setter Property="Text" Value="&#xEC54;" />
+                                        <DataTrigger Binding="{Binding NowPaused}" Value="True">
+                                            <Setter Property="Text" Value="&#xE768;" />
+                                            <Setter Property="Margin" Value="2,0,0,0" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding CanPause}" Value="False">
+                                            <Setter Property="Text" Value="&#xE768;" />
+                                            <Setter Property="Margin" Value="2,0,0,0" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <controls:SegMeter Width="44" Height="5" Margin="8,0,0,0" VerticalAlignment="Center" Level="{Binding MicLevel}"
-                                           On="{DynamicResource Accent}" Off="{DynamicResource Line}" Hot="{DynamicResource Warn}" />
+                    </Button>
+                    <Button Style="{StaticResource BarIcon}" Content="&#xE893;" Margin="0,0,8,0" Command="{Binding Next}" IsEnabled="{Binding InQueue}"
+                            ToolTip="Next sound in the playlist" AutomationProperties.Name="Next" />
+                    <ToggleButton Style="{StaticResource BarToggle}" Content="&#xE8EE;" IsChecked="{Binding Repeat}"
+                                  ToolTip="Repeat: playlists start over, single sounds loop" AutomationProperties.Name="Repeat" />
+                    <Button Style="{StaticResource BarIcon}" Margin="14,0,0,0" Command="{Binding StopAll}" ToolTip="Stop all sounds" AutomationProperties.Name="Stop all sounds">
+                        <Border Width="11" Height="11" CornerRadius="2" Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                </StackPanel>
+                <DockPanel Margin="0,4,0,0">
+                    <TextBlock DockPanel.Dock="Left" Text="{Binding PositionText}" Style="{StaticResource TimeText}" Width="40" TextAlignment="Right" Margin="0,0,10,0" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding DurationText}" Style="{StaticResource TimeText}" Width="40" Margin="10,0,0,0" />
+                    <Slider Value="{Binding Position}" IsEnabled="{Binding CanPause}" VerticalAlignment="Center"
+                            AutomationProperties.Name="Seek" ToolTip="Drag or click to jump" />
+                </DockPanel>
+            </StackPanel>
+
+            <!-- Right: voice chat mic, who hears, volume -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+
+                <!-- Mic in voice chat: mute toggle while on; "turn on" while off -->
+                <Grid DataContext="{Binding Mixer}">
+                    <ToggleButton IsChecked="{Binding MicMuted}" Visibility="{Binding Router.IsRunning, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="Mute microphone">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton" BasedOn="{StaticResource BarToggle}">
+                                <Setter Property="Content" Value="&#xE720;" />
+                                <Setter Property="ToolTip" Value="Your mic is on in voice chat. Click to mute." />
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="&#xEC54;" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+                                        <Setter Property="ToolTip" Value="Your mic is muted in voice chat. Click to unmute." />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
+                    <Button Style="{StaticResource BarIcon}" Content="&#xE720;" Command="{Binding TurnOn}" Opacity="0.55"
+                            Visibility="{Binding Router.IsRunning, Converter={StaticResource Visible}, ConverterParameter=not}"
+                            ToolTip="Voice chat is off. Click to send your mic and sounds to Discord." AutomationProperties.Name="Turn on voice chat" />
+                </Grid>
+
+                <!-- Who hears your sounds: a button that shows the choice and opens the picker -->
+                <ToggleButton x:Name="RouteButton" Margin="6,0,0,0" Height="34" DataContext="{Binding Mixer}"
+                              AutomationProperties.Name="Who hears your sounds" ToolTip="{Binding RouteHint}">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton" BasedOn="{StaticResource BarToggle}">
+                            <Setter Property="Width" Value="Auto" />
+                            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+                            <Setter Property="FontSize" Value="12" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding NobodyHears}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Warn}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsOpen, ElementName=RoutePopup}" Value="True">
+                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ToggleButton.Style>
+                    <StackPanel Orientation="Horizontal" Margin="9,0">
+                        <TextBlock Style="{StaticResource Icon}" Text="{Binding Route.Icon}" FontSize="14" />
+                        <TextBlock x:Name="RouteLabel" Text="{Binding Route.Label}" FontWeight="SemiBold" Margin="7,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE70E;" FontSize="8" Margin="6,0,0,0" />
                     </StackPanel>
                 </ToggleButton>
-                <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="14" Foreground="{DynamicResource Faint}" />
-                <TextBlock Text="{Binding OutputName}" Style="{StaticResource FaintText}" MaxWidth="160" Margin="6,0,20,0" VerticalAlignment="Center" ToolTip="{Binding OutputName}" />
-                <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" FontSize="15" Foreground="{DynamicResource Muted}" />
-                <Slider Width="130" Margin="10,0,0,0" Value="{Binding MasterVolume}" AutomationProperties.Name="Master volume" ToolTip="Master volume" />
-                <TextBlock Text="{Binding MasterVolume, StringFormat={}{0:P0}}" Width="40" TextAlignment="Right" Margin="6,0,0,0"
-                           Foreground="{DynamicResource Muted}" FontSize="12" VerticalAlignment="Center" />
+                <Popup x:Name="RoutePopup" IsOpen="{Binding IsChecked, ElementName=RouteButton}" StaysOpen="False" AllowsTransparency="True"
+                       PlacementTarget="{Binding ElementName=RouteButton}" Placement="Top" VerticalOffset="-6" HorizontalOffset="-110" PopupAnimation="Fade">
+                    <Border Style="{StaticResource PopupCard}" Width="290" Padding="8" DataContext="{Binding Mixer}">
+                        <StackPanel>
+                            <TextBlock Text="Who hears your sounds" FontWeight="SemiBold" Margin="8,6,8,8" />
+                            <ListBox x:Name="RouteList" Style="{StaticResource PlainList}" ItemsSource="{Binding RouteOptions}" SelectedItem="{Binding Route}"
+                                     SelectionChanged="OnRouteChosen" AutomationProperties.Name="Who hears your sounds">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <!-- Popups don't inherit the theme's text colour; without this the labels are black in dark mode -->
+                                        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+                                        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Row" Background="Transparent" CornerRadius="8" Padding="10,8">
+                                                        <ContentPresenter />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource AccentSoft}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="{Binding Icon}" FontSize="15" Width="26"
+                                                       Foreground="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Help}" Style="{StaticResource FaintText}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="{Binding RouteHint}" Style="{StaticResource FaintText}" TextWrapping="Wrap" Margin="8,8,8,4"
+                                       Visibility="{Binding RouteBlocked, Converter={StaticResource Visible}}" Foreground="{DynamicResource Warn}" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
+                <!-- Volume: click the speaker to mute; ⋯ for voice-chat volume and more -->
+                <Button Style="{StaticResource BarIcon}" Margin="6,0,0,0" Command="{Binding Player.ToggleMute}" AutomationProperties.Name="Mute sounds">
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                                <Setter Property="Text" Value="&#xE767;" />
+                                <Setter Property="FontSize" Value="15" />
+                                <Setter Property="ToolTip" Value="Mute your sounds" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Player.IsSilent}" Value="True">
+                                        <Setter Property="Text" Value="&#xE74F;" />
+                                        <Setter Property="ToolTip" Value="Unmute your sounds" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button>
+                <Slider x:Name="VolumeSlider" Width="96" Margin="2,0,0,0" VerticalAlignment="Center" Value="{Binding Mixer.MasterVolume}"
+                        AutomationProperties.Name="Volume of sounds you hear" ToolTip="{Binding Mixer.MasterVolume, StringFormat=Volume {0:P0}}" />
+                <ToggleButton x:Name="VolumeButton" Content="&#xE712;" Margin="4,0,0,0" AutomationProperties.Name="More volume settings"
+                              ToolTip="Voice chat volume and more">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton" BasedOn="{StaticResource BarToggle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOpen, ElementName=VolumePopup}" Value="True">
+                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ToggleButton.Style>
+                </ToggleButton>
+                <Popup x:Name="VolumePopup" IsOpen="{Binding IsChecked, ElementName=VolumeButton}" StaysOpen="False" AllowsTransparency="True"
+                       PlacementTarget="{Binding ElementName=VolumeButton}" Placement="Top" HorizontalOffset="-296" VerticalOffset="-6" PopupAnimation="Fade">
+                    <Border Style="{StaticResource PopupCard}" Padding="16,14,16,16" Width="320">
+                        <StackPanel>
+                            <TextBlock Text="Volume for all sounds" Style="{StaticResource H2}" />
+                            <TextBlock Text="Changes every sound at once." Style="{StaticResource FaintText}" Margin="0,2,0,14" />
+
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Mixer.MasterVolume, StringFormat={}{0:P0}}" Width="44" TextAlignment="Right"
+                                           FontWeight="SemiBold" VerticalAlignment="Bottom" />
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE7F6;" Foreground="{DynamicResource Muted}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="What you hear" FontWeight="Medium" />
+                                    <Slider Value="{Binding Mixer.MasterVolume}" Margin="0,4,0,0" AutomationProperties.Name="Volume of sounds you hear (panel)" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <DockPanel Margin="0,14,0,0">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Mixer.CallSoundVolume, StringFormat={}{0:P0}}" Width="44" TextAlignment="Right"
+                                           FontWeight="SemiBold" VerticalAlignment="Bottom" />
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8BD;" Foreground="{DynamicResource Muted}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="Voice chat off" Style="{StaticResource FaintText}" FontSize="11"
+                                                   Visibility="{Binding Mixer.Router.IsRunning, Converter={StaticResource Visible}, ConverterParameter=not}" />
+                                        <TextBlock Text="What your voice chat hears" FontWeight="Medium" />
+                                    </DockPanel>
+                                    <Slider Value="{Binding Mixer.CallSoundVolume}" Margin="0,4,0,0" AutomationProperties.Name="Volume of sounds in voice chat" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,14,0,0"
+                                    Visibility="{Binding Library.CustomVolumeCount, Converter={StaticResource Visible}}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Make all equal" Command="{Binding Library.ResetVolumes}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Library.CustomVolumeText}" FontWeight="Medium" TextWrapping="Wrap" />
+                                        <TextBlock Text="Set to 100% so they all follow these sliders" Style="{StaticResource FaintText}" FontSize="11" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </StackPanel>
         </Grid>
     </Border>

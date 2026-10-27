@@ -5,8 +5,10 @@ namespace VoxDeck.Core;
 // Atomic JSON files in the per-user app folder. An unreadable file is kept aside so a later save can't destroy it.
 public static class JsonFile
 {
-    public static readonly string AppFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VoxDeck");
+    // VOXDECK_DATA points a copy of the app at another folder (UI tests run next to the user's own VoxDeck).
+    public static readonly string AppFolder = Environment.GetEnvironmentVariable("VOXDECK_DATA") is { Length: > 0 } folder
+        ? folder
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VoxDeck");
 
     public static T? Load<T>(string path) where T : class
     {

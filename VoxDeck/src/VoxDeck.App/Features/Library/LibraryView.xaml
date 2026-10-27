@@ -12,21 +12,72 @@
 
         <!-- Header -->
         <DockPanel Margin="0,0,12,0">
-            <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Command="{Binding ImportFiles}" VerticalAlignment="Bottom">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
-                    <TextBlock Text="Add sounds" VerticalAlignment="Center" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <!-- New playlist: click for the dialog, or drop a sound on it -->
+                <Button x:Name="NewPlaylistButton" Command="{Binding NewPlaylist}" Margin="0,0,8,0" AllowDrop="True"
+                        DragOver="OnNewPlaylistDragOver" DragLeave="OnNewPlaylistDragLeave" Drop="OnNewPlaylistDrop"
+                        AutomationProperties.Name="New playlist" ToolTip="Make a playlist. You can also drop a sound here.">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+                                </DataTrigger>
+                                <Trigger Property="Tag" Value="drop">
+                                    <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8FD;" FontSize="13" Margin="0,0,8,0" />
+                        <TextBlock Text="New playlist" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource Primary}" Command="{Binding ImportFiles}" AutomationProperties.Name="Add sounds"
+                        Visibility="{Binding IsPlaylistView, Converter={StaticResource Visible}, ConverterParameter=not}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
+                        <TextBlock Text="Add sounds" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <!-- Playlist actions -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsPlaylistView, Converter={StaticResource Visible}}">
+                    <Button Style="{StaticResource IconButton}" Content="&#xE74D;" Width="36" Height="36" Command="{Binding DeletePlaylist}"
+                            ToolTip="Delete playlist" AutomationProperties.Name="Delete playlist" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE8AC;" Width="36" Height="36" Margin="2,0,8,0" Command="{Binding RenamePlaylist}"
+                            ToolTip="Rename playlist" AutomationProperties.Name="Rename playlist" />
+                    <Button Command="{Binding ImportFiles}" Margin="0,0,8,0" AutomationProperties.Name="Add sounds to this playlist"
+                            ToolTip="Add audio files to your library and to this playlist (Ctrl+O, or drop files on the window)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
+                            <TextBlock Text="Add sounds" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ShufflePlaylist}" Margin="0,0,8,0" AutomationProperties.Name="Shuffle playlist">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8B1;" FontSize="13" Margin="0,0,8,0" />
+                            <TextBlock Text="Shuffle" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Primary}" Command="{Binding PlayPlaylist}" AutomationProperties.Name="Play all">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,8,0" />
+                            <TextBlock Text="Play all" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
-            </Button>
-            <StackPanel>
-                <TextBlock Text="Library" Style="{StaticResource H1}" />
-                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock Text="{Binding PageTitle}" Style="{StaticResource H1}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </DockPanel>
 
-        <!-- Search + filters -->
-        <DockPanel Grid.Row="1" Margin="0,20,12,8" LastChildFill="False">
-            <Grid Width="320">
+        <!-- Search + filters + playlists (playlists accept dropped sounds) -->
+        <DockPanel Grid.Row="1" Margin="0,20,12,8">
+            <Grid Width="260" DockPanel.Dock="Left" VerticalAlignment="Top">
                 <TextBox x:Name="SearchBox" Padding="34,0,32,0" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="Search sounds" />
                 <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="14" Foreground="{DynamicResource Faint}"
@@ -37,12 +88,44 @@
                         Command="{Binding ClearSearch}" ToolTip="Clear search" AutomationProperties.Name="Clear search"
                         Visibility="{Binding Search, Converter={StaticResource Visible}}" />
             </Grid>
-            <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}" Margin="12,0,0,0"
+            <ListBox x:Name="Chips" Style="{StaticResource ChipList}" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}" Margin="12,0,0,0"
                      VerticalAlignment="Center" AutomationProperties.Name="Filter">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource ChipItem}">
+                        <Setter Property="AllowDrop" Value="True" />
+                        <Setter Property="Margin" Value="0,0,6,6" />
+                        <EventSetter Event="DragOver" Handler="OnChipDragOver" />
+                        <EventSetter Event="DragLeave" Handler="OnChipDragLeave" />
+                        <EventSetter Event="Drop" Handler="OnChipDrop" />
+                        <Style.Triggers>
+                            <!-- While a sound is dragged, playlists say "drop here" -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsPlaylist}" Value="True" />
+                                    <Condition Binding="{Binding DataContext.IsDragging, ElementName=Chips}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+                            </MultiDataTrigger>
+                            <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Label}" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8FD;" FontSize="12" Margin="0,0,7,0"
+                                       Visibility="{Binding IsPlaylist, Converter={StaticResource Visible}}" />
+                            <TextBlock Text="{Binding Label}" MaxWidth="160" TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding Count}" FontSize="11" Opacity="0.6" Margin="6,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </DataTemplate>
@@ -50,11 +133,13 @@
             </ListBox>
         </DockPanel>
 
-        <!-- Tiles -->
+        <!-- Tiles (drag one to a playlist; inside a playlist, drop on another tile to reorder) -->
         <ScrollViewer Grid.Row="2" x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       SizeChanged="OnScrollerSizeChanged" Focusable="False">
             <!-- UniformGrid doesn't virtualize; switch to a virtualizing panel past a few thousand sounds. -->
-            <ItemsControl x:Name="Tiles" ItemsSource="{Binding Items}" Margin="-6,4,6,24" Focusable="False">
+            <ItemsControl x:Name="Tiles" ItemsSource="{Binding Items}" Margin="-6,4,6,24" Focusable="False" AllowDrop="True"
+                          PreviewMouseLeftButtonDown="OnTilesMouseDown" PreviewMouseMove="OnTilesMouseMove"
+                          DragOver="OnTilesDragOver" DragLeave="OnTilesDragLeave" Drop="OnTilesDrop">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid VerticalAlignment="Top" Loaded="OnGridLoaded" />
@@ -71,6 +156,14 @@
                                     <MenuItem Header="Edit…" Command="{Binding PlacementTarget.Tag.EditSound, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
                                     <MenuItem Header="{Binding FavoriteMenuText}" Command="{Binding PlacementTarget.Tag.ToggleFavorite, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
                                     <Separator />
+                                    <MenuItem Header="Add to playlist…" Command="{Binding PlacementTarget.Tag.AddToPlaylist, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                    <MenuItem Header="Move earlier" Command="{Binding PlacementTarget.Tag.MoveEarlier, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"
+                                              Visibility="{Binding PlacementTarget.Tag.IsPlaylistView, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Visible}}" />
+                                    <MenuItem Header="Move later" Command="{Binding PlacementTarget.Tag.MoveLater, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"
+                                              Visibility="{Binding PlacementTarget.Tag.IsPlaylistView, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Visible}}" />
+                                    <MenuItem Header="Remove from this playlist" Command="{Binding PlacementTarget.Tag.RemoveFromPlaylist, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"
+                                              Visibility="{Binding PlacementTarget.Tag.IsPlaylistView, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Visible}}" />
+                                    <Separator />
                                     <MenuItem Header="Remove from library" Command="{Binding PlacementTarget.Tag.Remove, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
                                 </ContextMenu>
                             </Button.ContextMenu>
@@ -80,6 +173,8 @@
                                             AutomationProperties.Name="Edit" Command="{Binding DataContext.EditSound, ElementName=Tiles}" CommandParameter="{Binding}" />
                                     <Button DockPanel.Dock="Right" Style="{StaticResource FavAction}" ToolTip="Favorite" AutomationProperties.Name="Favorite"
                                             Command="{Binding DataContext.ToggleFavorite, ElementName=Tiles}" CommandParameter="{Binding}" controls:Motion.PressScale="0.75" />
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource TileAction}" Content="&#xE710;" ToolTip="Add to playlist"
+                                            AutomationProperties.Name="Add to playlist" Command="{Binding DataContext.AddToPlaylist, ElementName=Tiles}" CommandParameter="{Binding}" />
                                     <TextBlock x:Name="TagText" Text="{Binding Tag}" Style="{StaticResource FaintText}" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
                                 </DockPanel>
                                 <DockPanel Margin="0,4,0,0">
@@ -110,6 +205,10 @@
                                 <Setter TargetName="KeyCap" Property="BorderBrush" Value="{DynamicResource AccentLine}" />
                                 <Setter TargetName="KeyCap" Property="TextElement.Foreground" Value="{DynamicResource Accent}" />
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                <Setter TargetName="Tile" Property="Background" Value="{DynamicResource AccentSoft}" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsMissing}" Value="True">
                                 <Setter TargetName="TagText" Property="Foreground" Value="{DynamicResource Danger}" />
                             </DataTrigger>
@@ -124,6 +223,16 @@
             </ItemsControl>
         </ScrollViewer>
 
+        <!-- While dragging: what you can do with the sound -->
+        <Border Grid.Row="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,12,18" Padding="16,9" CornerRadius="20"
+                Background="{DynamicResource Accent}" IsHitTestVisible="False"
+                Visibility="{Binding IsDragging, Converter={StaticResource Visible}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE8FD;" FontSize="13" Foreground="{DynamicResource OnAccent}" Margin="0,0,9,0" />
+                <TextBlock Text="{Binding DragHint}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" />
+            </StackPanel>
+        </Border>
+
         <!-- Empty library -->
         <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,12,60"
                     Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">
@@ -132,13 +241,25 @@
             </Border>
             <TextBlock Text="Your soundboard is empty" Style="{StaticResource H2}" FontSize="17" HorizontalAlignment="Center" Margin="0,18,0,0" />
             <TextBlock Text="Add audio files or drag them anywhere onto this window. Your files stay where they are."
-                       Style="{StaticResource MutedText}" TextAlignment="Center" MaxWidth="320" Margin="0,6,0,0" />
+                       Style="{StaticResource MutedText}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="320" Margin="0,6,0,0" />
             <Button Style="{StaticResource Primary}" Command="{Binding ImportFiles}" HorizontalAlignment="Center" Margin="0,20,0,0" Height="40" Padding="20,0">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
                     <TextBlock Text="Add sounds" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
+        </StackPanel>
+
+        <!-- Empty playlist -->
+        <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,60,12,0"
+                    Visibility="{Binding IsPlaylistEmpty, Converter={StaticResource Visible}}">
+            <Border Width="64" Height="64" CornerRadius="18" Background="{DynamicResource AccentSoft}" HorizontalAlignment="Center">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE8FD;" FontSize="26" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
+            </Border>
+            <TextBlock Text="This playlist is empty" Style="{StaticResource H2}" FontSize="17" HorizontalAlignment="Center" Margin="0,16,0,0" />
+            <TextBlock Text="Press Add sounds (or drop files here) to add new ones, or open All and drag sounds onto this playlist. They play one after another, in order."
+                       Style="{StaticResource MutedText}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360" Margin="0,6,0,0" />
+            <Button Command="{Binding ShowAll}" HorizontalAlignment="Center" Margin="0,18,0,0" Content="Show all sounds" />
         </StackPanel>
 
         <!-- No matches -->

@@ -289,11 +289,11 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
                 <Setter Property="Foreground" Value="{DynamicResource Danger}" />
             </Trigger>
-            <Trigger Property="Tag" Value="True">
+            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
                 <Setter Property="Background" Value="{DynamicResource DangerSoft}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
                 <Setter Property="Foreground" Value="{DynamicResource Danger}" />
-            </Trigger>
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -347,21 +347,21 @@
         <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="controls:Motion.PressScale" Value="1" />
         <Style.Triggers>
-            <Trigger Property="Tag" Value="True">
+            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
                 <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
                 <Setter Property="Foreground" Value="{DynamicResource Accent}" />
-                <Trigger.EnterActions>
+                <DataTrigger.EnterActions>
                     <BeginStoryboard x:Name="Pulse">
                         <Storyboard RepeatBehavior="Forever" AutoReverse="True">
                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.65" Duration="0:0:0.6" />
                         </Storyboard>
                     </BeginStoryboard>
-                </Trigger.EnterActions>
-                <Trigger.ExitActions>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
                     <StopStoryboard BeginStoryboardName="Pulse" />
-                </Trigger.ExitActions>
-            </Trigger>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -803,7 +803,39 @@
         </Setter>
     </Style>
 
-    <!-- Filter chips -->
+    <!-- Filter chips. ChipItem is one chip; views can extend it (e.g. as drop targets). -->
+    <Style x:Key="ChipItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="13,0" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+        <Setter Property="controls:Motion.PressScale" Value="0.95" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                            CornerRadius="16" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Text}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Line2}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Text}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Text}" />
+                <Setter Property="Foreground" Value="{DynamicResource Surface}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
     <Style x:Key="ChipList" TargetType="ListBox" BasedOn="{StaticResource PlainList}">
         <Setter Property="ItemsPanel">
             <Setter.Value>
@@ -812,42 +844,7 @@
                 </ItemsPanelTemplate>
             </Setter.Value>
         </Setter>
-        <Setter Property="ItemContainerStyle">
-            <Setter.Value>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="Foreground" Value="{DynamicResource Muted}" />
-                    <Setter Property="Background" Value="{DynamicResource Surface}" />
-                    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
-                    <Setter Property="FontWeight" Value="Medium" />
-                    <Setter Property="Height" Value="32" />
-                    <Setter Property="Padding" Value="13,0" />
-                    <Setter Property="Margin" Value="0,0,6,0" />
-                    <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
-                    <Setter Property="controls:Motion.PressScale" Value="0.95" />
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="ListBoxItem">
-                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                        CornerRadius="16" Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter VerticalAlignment="Center" />
-                                </Border>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Foreground" Value="{DynamicResource Text}" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource Line2}" />
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource Text}" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource Text}" />
-                            <Setter Property="Foreground" Value="{DynamicResource Surface}" />
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ChipItem}" />
     </Style>
 
     <!-- Radio-style option rows (device picker) -->
@@ -982,12 +979,32 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Row" Padding="10,7" CornerRadius="5" Background="Transparent">
-                        <ContentPresenter ContentSource="Header" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="Row" Padding="10,7" CornerRadius="5" Background="Transparent">
+                            <DockPanel>
+                                <TextBlock x:Name="Arrow" DockPanel.Dock="Right" Style="{StaticResource Icon}" Text="&#xE76C;" FontSize="10"
+                                           Foreground="{DynamicResource Faint}" Margin="14,0,0,0" Visibility="Collapsed" />
+                                <ContentPresenter ContentSource="Header" />
+                            </DockPanel>
+                        </Border>
+                        <!-- Submenu (e.g. Add to playlist ▸) -->
+                        <Popup IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Right" HorizontalOffset="6" VerticalOffset="-5"
+                               AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line2}" BorderThickness="1" Padding="4" MinWidth="180"
+                                    TextElement.FontFamily="{StaticResource UiFont}" TextElement.FontSize="13">
+                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                            </Border>
+                        </Popup>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}" />
+                        </Trigger>
+                        <Trigger Property="HasItems" Value="True">
+                            <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Row" Property="Opacity" Value="0.45" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -1003,6 +1020,39 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- Checkbox row: the whole row is clickable and highlights on hover -->
+    <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Row" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                        <DockPanel>
+                            <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" BorderThickness="1.5" Margin="0,0,12,0" VerticalAlignment="Center"
+                                    BorderBrush="{DynamicResource Line2}" Background="{DynamicResource Surface}">
+                                <TextBlock x:Name="Mark" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource OnAccent}" Visibility="Collapsed" />
+                            </Border>
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ToolTip">
         <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
         <Setter Property="FontSize" Value="12" />

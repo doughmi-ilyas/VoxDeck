@@ -2,6 +2,8 @@ using VoxDeck.App.Features.AudioSetup;
 using VoxDeck.App.Features.Editor;
 using VoxDeck.App.Features.Library;
 using VoxDeck.App.Features.Mixer;
+using VoxDeck.App.Features.Modals;
+using VoxDeck.App.Features.Onboarding;
 using VoxDeck.App.Features.Palette;
 using VoxDeck.App.Features.Player;
 using VoxDeck.App.Features.Settings;
@@ -22,16 +24,17 @@ public sealed class MainViewModel : ViewModel, IDisposable
         Toasts = new ToastsViewModel();
         Router = new AudioRouter(_engine, Settings, Toasts);
         Player = new PlayerViewModel(_engine, Settings, Toasts);
-        Library = new LibraryViewModel(Player, Toasts);
+        Library = new LibraryViewModel(Player, Toasts, Modals);
         Mixer = new MixerViewModel(_engine, Router, Settings, Player, Toasts);
+        Mixer.ShowSetup = () => Page = Mixer;
         Hotkeys = new HotkeyManager(Library, Settings, Player, Mixer, Toasts);
         Settings.AttachHotkeys(Hotkeys);
         Library.Hotkeys = Hotkeys;
         Audio = new AudioSetupViewModel(Settings, _engine, Router);
-        Editor = new SoundEditorViewModel(Library, Player, Hotkeys, Toasts, Router);
+        Onboarding = new OnboardingViewModel(Settings, Audio, Mixer, Library);
+        Editor = new SoundEditorViewModel(Library, Player, Hotkeys, Toasts);
         Library.EditRequested += Editor.Open;
         Palette = new PaletteViewModel(PaletteEntries);
-        Router.Changed += () => Player.OutputName = Router.MonitorName;
         Router.Refresh(); // opens the output devices
 
         Pages = [Library, Mixer, Audio, Settings];
@@ -51,6 +54,7 @@ public sealed class MainViewModel : ViewModel, IDisposable
     public MixerViewModel Mixer { get; }
     public HotkeyManager Hotkeys { get; }
     public AudioSetupViewModel Audio { get; }
+    public OnboardingViewModel Onboarding { get; }
     public SoundEditorViewModel Editor { get; }
     public PaletteViewModel Palette { get; }
 
@@ -67,6 +71,9 @@ public sealed class MainViewModel : ViewModel, IDisposable
     }
 
     public bool IsDraggingFiles { get; set => Set(ref field, value); }
+    /// <summary>The window is wide enough for the full sidebar (set by the window as it resizes).</summary>
+    public bool IsWide { get; set => Set(ref field, value); } = true;
+    public ModalHost Modals { get; } = new();
 
     public Command OpenPalette { get; }
     public Command Import { get; }
@@ -80,6 +87,10 @@ public sealed class MainViewModel : ViewModel, IDisposable
         yield return new("Add sounds…", "Action", "", "Ctrl+O", () => Import.Execute(null));
         if (Router.Cables.Count > 0)
             yield return new(Mixer.Enabled ? "Stop sending to voice chat" : "Send to voice chat", "Voice mixing", "", null, () => Mixer.Enabled = !Mixer.Enabled);
+        foreach (var chip in Library.Filters.Where(f => f.IsPlaylist))
+            yield return new($"Play playlist: {chip.Label}", $"Playlist  ·  {chip.Count} sounds", "", null, () => Library.PlayAll(chip, shuffle: false));
+        foreach (var option in Mixer.RouteOptions.Where(o => o != Mixer.Route))
+            yield return new($"Sounds play for: {option.Label}", "Who hears your sounds", option.Icon, null, () => Mixer.Route = option);
         if (Router.IsRunning)
             yield return new(Mixer.MicMuted ? "Unmute microphone" : "Mute microphone", "Voice mixing", "", Settings.MuteMicShortcut?.Text, () => Mixer.MicMuted = !Mixer.MicMuted);
         yield return new(ThemeManager.IsDark ? "Switch to light theme" : "Switch to dark theme", "Action",

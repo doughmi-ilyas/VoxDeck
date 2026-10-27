@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using VoxDeck.Core.Audio;
 using VoxDeck.Core.Hotkeys;
 
 namespace VoxDeck.Core.Library;
@@ -16,8 +15,7 @@ public sealed record Sound(
     bool Favorite = false,
     Hotkey? Hotkey = null,
     byte[]? Peaks = null,
-    DateTime? LastPlayed = null,
-    SoundRoute Route = SoundRoute.Both)
+    DateTime? LastPlayed = null)
 {
     [JsonIgnore] public string Format => System.IO.Path.GetExtension(Path).TrimStart('.').ToUpperInvariant();
 }

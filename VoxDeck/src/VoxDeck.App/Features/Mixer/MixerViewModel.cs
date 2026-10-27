@@ -47,6 +47,7 @@ public sealed class MixerViewModel : ViewModel, IPage
         GetCable = new Command(() => Process.Start(new ProcessStartInfo(CableDownloadPage) { UseShellExecute = true }));
         CopyMicName = new Command(OnCopyMicName);
         RecordTest = new Command(OnRecordTest);
+        TurnOn = new Command(StartVoiceChat);
     }
 
     public string Title => "Mixer";
@@ -67,6 +68,52 @@ public sealed class MixerViewModel : ViewModel, IPage
                 _toasts.Success($"Voice mixing is on. In Discord, pick “{Router.Cable!.Microphone.Name}” as your microphone.");
         }
     }
+
+    /// <summary>Opens the Mixer page; set by the main window.</summary>
+    public Action? ShowSetup { get; set; }
+
+    public RouteOption[] RouteOptions { get; } =
+    [
+        new(SoundRoute.MeOnly, "Me", "", "Only you hear your sounds"),
+        new(SoundRoute.Both, "Both", "", "You and your voice chat hear them"),
+        new(SoundRoute.CallOnly, "Chat", "", "Only your voice chat hears them"),
+    ];
+
+    /// <summary>Who hears every sound. Picking one that reaches voice chat turns voice chat on when it can.</summary>
+    public RouteOption Route
+    {
+        get => RouteOptions.First(o => o.Route == _settings.Current.SoundRoute);
+        set
+        {
+            if (value is null || value.Route == _settings.Current.SoundRoute) return;
+            _settings.Update(s => s with { SoundRoute = value.Route });
+            Raise(nameof(Route));
+            Raise(nameof(RouteHint));
+            Raise(nameof(RouteBlocked));
+            Raise(nameof(NobodyHears));
+            if (RouteBlocked) StartVoiceChat();
+        }
+    }
+
+    /// <summary>Turns voice chat on, or explains what's missing and offers the Mixer page.</summary>
+    void StartVoiceChat()
+    {
+        if (!HasCable)
+        {
+            _toasts.Show(new Toast("Voice chat needs a free virtual cable first. It takes about two minutes.", "", "info", "Set up", ShowSetup));
+            return;
+        }
+        Enabled = true;
+        if (!Router.IsRunning) _toasts.Show(new Toast(StatusText, "", "error", "Open Mixer", ShowSetup));
+    }
+
+    /// <summary>The route wants voice chat, but voice chat is off.</summary>
+    public bool RouteBlocked => Route.Route != SoundRoute.MeOnly && !Router.IsRunning;
+
+    public bool NobodyHears => RouteBlocked && Route.Route == SoundRoute.CallOnly;
+
+    public string RouteHint => !RouteBlocked ? Route.Help
+        : Route.Route == SoundRoute.Both ? "Voice chat is off: only you hear them" : "Voice chat is off: nobody hears them";
 
     public bool HasCable => Router.Cables.Count > 0;
     public bool HasSeveralCables => Router.Cables.Count > 1;
@@ -158,6 +205,7 @@ public sealed class MixerViewModel : ViewModel, IPage
     public Command GetCable { get; }
     public Command CopyMicName { get; }
     public Command RecordTest { get; }
+    public Command TurnOn { get; }
 
     /// <summary>For the mute shortcut: confirms with a toast because you may be in another app.</summary>
     public void ToggleMuteFromHotkey() => SetMuted(!MicMuted, announce: true);
@@ -250,4 +298,9 @@ public sealed class MixerViewModel : ViewModel, IPage
             IsTesting = false;
         }
     }
+}
+
+public sealed record RouteOption(SoundRoute Route, string Label, string Icon, string Help)
+{
+    public override string ToString() => Label; // what screen readers announce
 }

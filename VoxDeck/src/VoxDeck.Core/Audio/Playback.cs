@@ -1,6 +1,6 @@
 namespace VoxDeck.Core.Audio;
 
-// One press of a sound: the same audio playing on each output its route allows — your headphones
+// One press of a sound: the same audio playing on each output the sound route allows — your headphones
 // and/or the voice-chat cable. Position and duration come from the first one.
 public sealed class Playback
 {
