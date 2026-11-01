@@ -79,14 +79,14 @@ public sealed class PlayerViewModel : ViewModel
         }
     }
 
-    /// <summary>Playlists start over at the end; a single sound loops.</summary>
+    /// <summary>The current sound loops until repeat is turned off (or you press next); also in playlists.</summary>
     public bool Repeat
     {
         get;
         set
         {
             if (!Set(ref field, value)) return;
-            if (_queue is null && NowPlaying is { Playback: { Ended: false } p } item) p.Loop = value || item.Model.Loop;
+            if (NowPlaying is { Playback: { Ended: false } p } item) p.Loop = value || (item.Model.Loop && _queue is null);
         }
     }
 
@@ -149,9 +149,9 @@ public sealed class PlayerViewModel : ViewModel
         }
         try
         {
-            // In a playlist each sound plays once, even if it's set to loop, so the list keeps moving.
+            // Repeat always loops the current sound. A sound's own Loop setting is ignored in a playlist, so the list keeps moving.
             var playback = _engine.Play(sound.Path, TimeSpan.FromSeconds(fromSeconds ?? sound.StartSeconds),
-                TimeSpan.FromSeconds(sound.StartSeconds), (float)sound.Volume, (sound.Loop || Repeat) && !fromQueue, _settings.Current.SoundRoute);
+                TimeSpan.FromSeconds(sound.StartSeconds), (float)sound.Volume, Repeat || (sound.Loop && !fromQueue), _settings.Current.SoundRoute);
             if (playback is null)
             {
                 _toasts.Error("Too many sounds are playing. Press Stop all.");
@@ -178,17 +178,11 @@ public sealed class PlayerViewModel : ViewModel
     }
 
     // Skips sounds that can't play (missing file), so one bad file doesn't end the playlist.
-    // With repeat on, the end wraps to the start; trying each sound once at most keeps it from spinning.
     void PlayFromQueue(int index)
     {
         if (_queue is not { } queue) return;
-        for (var tries = 0; tries < queue.Count; tries++, index++)
+        for (; index < queue.Count; index++)
         {
-            if (index >= queue.Count)
-            {
-                if (!Repeat) break;
-                index = 0;
-            }
             _queueIndex = index;
             if (Start(queue[index], null, fromQueue: true)) return;
         }

@@ -308,12 +308,8 @@ public sealed class LibraryViewModel : ViewModel, IPage
         else _player.PlayAll(sounds, playlist.Name, shuffle: shuffle);
     }
 
-    // Inside a playlist, pressing a sound plays the playlist from that sound on.
-    void OnPlay(SoundItem item)
-    {
-        if (Filter.Playlist is { } playlist) _player.PlayAll(PlaylistItems(Filter), playlist.Name, item);
-        else _player.Play(item);
-    }
+    // Pressing a sound plays just that sound, even inside a playlist; Play all / Shuffle play the list.
+    void OnPlay(SoundItem item) => _player.Play(item);
 
     List<SoundItem> PlaylistItems(FilterChip chip) =>
         [.. chip.Playlist!.Paths.Select(path => Items.FirstOrDefault(i => string.Equals(i.Model.Path, path, StringComparison.OrdinalIgnoreCase))).OfType<SoundItem>()];

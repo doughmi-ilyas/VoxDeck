@@ -148,7 +148,7 @@
                     <Button Style="{StaticResource BarIcon}" Content="&#xE893;" Margin="0,0,8,0" Command="{Binding Next}" IsEnabled="{Binding InQueue}"
                             ToolTip="Next sound in the playlist" AutomationProperties.Name="Next" />
                     <ToggleButton Style="{StaticResource BarToggle}" Content="&#xE8EE;" IsChecked="{Binding Repeat}"
-                                  ToolTip="Repeat: playlists start over, single sounds loop" AutomationProperties.Name="Repeat" />
+                                  ToolTip="Repeat this sound" AutomationProperties.Name="Repeat" />
                     <Button Style="{StaticResource BarIcon}" Margin="14,0,0,0" Command="{Binding StopAll}" ToolTip="Stop all sounds" AutomationProperties.Name="Stop all sounds">
                         <Border Width="11" Height="11" CornerRadius="2" Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                     </Button>
